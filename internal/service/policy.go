@@ -273,6 +273,55 @@ func validatePatchInput(patch *v1alpha1.Policy) error {
 	return nil
 }
 
+// validatePatchImmutableFields returns an error if the patch attempts to change any readOnly or immutable field.
+// Fields present in patch (non-nil) must match the existing policy; omitting a field (nil) is allowed.
+func validatePatchImmutableFields(patch *v1alpha1.Policy, existing v1alpha1.Policy) error {
+	if patch == nil {
+		return nil
+	}
+	if patch.Path != nil {
+		if existing.Path == nil || *patch.Path != *existing.Path {
+			return NewInvalidArgumentError(
+				"path cannot be updated",
+				"The path field is read-only and cannot be changed",
+			)
+		}
+	}
+	if patch.Id != nil {
+		if existing.Id == nil || *patch.Id != *existing.Id {
+			return NewInvalidArgumentError(
+				"id cannot be updated",
+				"The id field is read-only and cannot be changed",
+			)
+		}
+	}
+	if patch.PolicyType != nil {
+		if existing.PolicyType == nil || *patch.PolicyType != *existing.PolicyType {
+			return NewInvalidArgumentError(
+				"policy_type is immutable",
+				"The policy_type field cannot be changed after creation",
+			)
+		}
+	}
+	if patch.CreateTime != nil {
+		if existing.CreateTime == nil || !patch.CreateTime.Equal(*existing.CreateTime) {
+			return NewInvalidArgumentError(
+				"create_time cannot be updated",
+				"The create_time field is read-only and cannot be changed",
+			)
+		}
+	}
+	if patch.UpdateTime != nil {
+		if existing.UpdateTime == nil || !patch.UpdateTime.Equal(*existing.UpdateTime) {
+			return NewInvalidArgumentError(
+				"update_time cannot be updated",
+				"The update_time field is read-only and cannot be changed",
+			)
+		}
+	}
+	return nil
+}
+
 // UpdatePolicy updates an existing policy using partial merge (PATCH).
 func (s *PolicyServiceImpl) UpdatePolicy(ctx context.Context, id string, patch *v1alpha1.Policy) (*v1alpha1.Policy, error) {
 	if err := validatePatchInput(patch); err != nil {
@@ -287,6 +336,9 @@ func (s *PolicyServiceImpl) UpdatePolicy(ctx context.Context, id string, patch *
 		return nil, NewInternalError("Failed to get existing policy", err.Error(), err)
 	}
 	existing := DBToAPIModel(existingDB)
+	if err := validatePatchImmutableFields(patch, existing); err != nil {
+		return nil, err
+	}
 	merged := mergePolicyOntoPolicy(patch, existing)
 
 	// Convert API model to DB model and update store

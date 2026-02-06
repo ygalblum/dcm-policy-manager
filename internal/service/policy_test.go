@@ -2,6 +2,7 @@ package service_test
 
 import (
 	"context"
+	"time"
 
 	"github.com/dcm-project/policy-manager/api/v1alpha1"
 	"github.com/dcm-project/policy-manager/internal/service"
@@ -781,6 +782,213 @@ var _ = Describe("PolicyService", func() {
 			Expect(err).To(BeNil())
 			Expect(updated).NotTo(BeNil())
 			Expect(*updated.Priority).To(Equal(int32(800)))
+		})
+
+		// Immutable/readOnly field validation: patch must not change path, id, policy_type, create_time, update_time.
+		It("should reject patch when path is different from existing", func() {
+			clientID := "immutable-path-test"
+			policy := v1alpha1.Policy{
+				DisplayName: strPtr("Path Test"),
+				PolicyType:  policyTypePtr(v1alpha1.GLOBAL),
+				RegoCode:    strPtr("package test"),
+			}
+			_, err := policyService.CreatePolicy(ctx, policy, &clientID)
+			Expect(err).To(BeNil())
+
+			wrongPath := "policies/other-id"
+			patch := &v1alpha1.Policy{
+				Path:        &wrongPath,
+				DisplayName: strPtr("Updated"),
+			}
+			_, err = policyService.UpdatePolicy(ctx, clientID, patch)
+			Expect(err).NotTo(BeNil())
+			serviceErr, ok := err.(*service.ServiceError)
+			Expect(ok).To(BeTrue())
+			Expect(serviceErr.Type).To(Equal(service.ErrorTypeInvalidArgument))
+			Expect(serviceErr.Message).To(ContainSubstring("path cannot be updated"))
+		})
+
+		It("should accept patch when path is same as existing (with mutable change)", func() {
+			clientID := "immutable-path-same-test"
+			policy := v1alpha1.Policy{
+				DisplayName: strPtr("Path Same Test"),
+				PolicyType:  policyTypePtr(v1alpha1.GLOBAL),
+				RegoCode:    strPtr("package test"),
+			}
+			created, err := policyService.CreatePolicy(ctx, policy, &clientID)
+			Expect(err).To(BeNil())
+			Expect(created.Path).NotTo(BeNil())
+
+			patch := &v1alpha1.Policy{
+				Path:        created.Path,
+				DisplayName: strPtr("Updated Name"),
+			}
+			updated, err := policyService.UpdatePolicy(ctx, clientID, patch)
+			Expect(err).To(BeNil())
+			Expect(*updated.DisplayName).To(Equal("Updated Name"))
+			Expect(*updated.Path).To(Equal("policies/" + clientID))
+		})
+
+		It("should reject patch when id is different from existing", func() {
+			clientID := "immutable-id-test"
+			policy := v1alpha1.Policy{
+				DisplayName: strPtr("ID Test"),
+				PolicyType:  policyTypePtr(v1alpha1.GLOBAL),
+				RegoCode:    strPtr("package test"),
+			}
+			_, err := policyService.CreatePolicy(ctx, policy, &clientID)
+			Expect(err).To(BeNil())
+
+			wrongID := "other-id"
+			patch := &v1alpha1.Policy{
+				Id:          &wrongID,
+				DisplayName: strPtr("Updated"),
+			}
+			_, err = policyService.UpdatePolicy(ctx, clientID, patch)
+			Expect(err).NotTo(BeNil())
+			serviceErr, ok := err.(*service.ServiceError)
+			Expect(ok).To(BeTrue())
+			Expect(serviceErr.Type).To(Equal(service.ErrorTypeInvalidArgument))
+			Expect(serviceErr.Message).To(ContainSubstring("id cannot be updated"))
+		})
+
+		It("should reject patch when policy_type is different from existing", func() {
+			clientID := "immutable-type-test"
+			policy := v1alpha1.Policy{
+				DisplayName: strPtr("Type Test"),
+				PolicyType:  policyTypePtr(v1alpha1.GLOBAL),
+				RegoCode:    strPtr("package test"),
+			}
+			_, err := policyService.CreatePolicy(ctx, policy, &clientID)
+			Expect(err).To(BeNil())
+
+			patch := &v1alpha1.Policy{
+				PolicyType:  policyTypePtr(v1alpha1.USER),
+				DisplayName: strPtr("Updated"),
+			}
+			_, err = policyService.UpdatePolicy(ctx, clientID, patch)
+			Expect(err).NotTo(BeNil())
+			serviceErr, ok := err.(*service.ServiceError)
+			Expect(ok).To(BeTrue())
+			Expect(serviceErr.Type).To(Equal(service.ErrorTypeInvalidArgument))
+			Expect(serviceErr.Message).To(ContainSubstring("policy_type is immutable"))
+		})
+
+		It("should accept patch when policy_type is same as existing (with mutable change)", func() {
+			clientID := "immutable-type-same-test"
+			policy := v1alpha1.Policy{
+				DisplayName: strPtr("Type Same Test"),
+				PolicyType:  policyTypePtr(v1alpha1.GLOBAL),
+				RegoCode:    strPtr("package test"),
+			}
+			created, err := policyService.CreatePolicy(ctx, policy, &clientID)
+			Expect(err).To(BeNil())
+
+			patch := &v1alpha1.Policy{
+				PolicyType:  created.PolicyType,
+				DisplayName: strPtr("Updated Name"),
+			}
+			updated, err := policyService.UpdatePolicy(ctx, clientID, patch)
+			Expect(err).To(BeNil())
+			Expect(*updated.DisplayName).To(Equal("Updated Name"))
+			Expect(*updated.PolicyType).To(Equal(v1alpha1.GLOBAL))
+		})
+
+		It("should reject patch when create_time is different from existing", func() {
+			clientID := "immutable-ctime-test"
+			policy := v1alpha1.Policy{
+				DisplayName: strPtr("CreateTime Test"),
+				PolicyType:  policyTypePtr(v1alpha1.GLOBAL),
+				RegoCode:    strPtr("package test"),
+			}
+			_, err := policyService.CreatePolicy(ctx, policy, &clientID)
+			Expect(err).To(BeNil())
+
+			otherTime := time.Now().Add(-24 * time.Hour)
+			patch := &v1alpha1.Policy{
+				CreateTime:  &otherTime,
+				DisplayName: strPtr("Updated"),
+			}
+			_, err = policyService.UpdatePolicy(ctx, clientID, patch)
+			Expect(err).NotTo(BeNil())
+			serviceErr, ok := err.(*service.ServiceError)
+			Expect(ok).To(BeTrue())
+			Expect(serviceErr.Type).To(Equal(service.ErrorTypeInvalidArgument))
+			Expect(serviceErr.Message).To(ContainSubstring("create_time cannot be updated"))
+		})
+
+		It("should reject patch when update_time is different from existing", func() {
+			clientID := "immutable-utime-test"
+			policy := v1alpha1.Policy{
+				DisplayName: strPtr("UpdateTime Test"),
+				PolicyType:  policyTypePtr(v1alpha1.GLOBAL),
+				RegoCode:    strPtr("package test"),
+			}
+			created, err := policyService.CreatePolicy(ctx, policy, &clientID)
+			Expect(err).To(BeNil())
+
+			otherTime := time.Now().Add(24 * time.Hour)
+			patch := &v1alpha1.Policy{
+				UpdateTime:  &otherTime,
+				DisplayName: strPtr("Updated"),
+			}
+			_, err = policyService.UpdatePolicy(ctx, clientID, patch)
+			Expect(err).NotTo(BeNil())
+			serviceErr, ok := err.(*service.ServiceError)
+			Expect(ok).To(BeTrue())
+			Expect(serviceErr.Type).To(Equal(service.ErrorTypeInvalidArgument))
+			Expect(serviceErr.Message).To(ContainSubstring("update_time cannot be updated"))
+			// Ensure existing policy unchanged
+			got, _ := policyService.GetPolicy(ctx, clientID)
+			Expect(got).NotTo(BeNil())
+			Expect(got.UpdateTime).NotTo(BeNil())
+			Expect(created.UpdateTime).NotTo(BeNil())
+			Expect(got.UpdateTime.Equal(*created.UpdateTime)).To(BeTrue())
+		})
+
+		It("should accept patch with only mutable fields (no immutable fields in patch)", func() {
+			clientID := "immutable-mutable-only-test"
+			policy := v1alpha1.Policy{
+				DisplayName: strPtr("Mutable Only"),
+				PolicyType:  policyTypePtr(v1alpha1.GLOBAL),
+				RegoCode:    strPtr("package test"),
+			}
+			_, err := policyService.CreatePolicy(ctx, policy, &clientID)
+			Expect(err).To(BeNil())
+
+			patch := &v1alpha1.Policy{
+				DisplayName: strPtr("Updated Display"),
+				Description: strPtr("New description"),
+			}
+			updated, err := policyService.UpdatePolicy(ctx, clientID, patch)
+			Expect(err).To(BeNil())
+			Expect(*updated.DisplayName).To(Equal("Updated Display"))
+			Expect(updated.Description).NotTo(BeNil())
+			Expect(*updated.Description).To(Equal("New description"))
+		})
+
+		It("should accept patch with nil immutable fields (field not sent)", func() {
+			clientID := "immutable-nil-fields-test"
+			policy := v1alpha1.Policy{
+				DisplayName: strPtr("Nil Fields Test"),
+				PolicyType:  policyTypePtr(v1alpha1.GLOBAL),
+				RegoCode:    strPtr("package test"),
+			}
+			created, err := policyService.CreatePolicy(ctx, policy, &clientID)
+			Expect(err).To(BeNil())
+
+			// Patch omits path, id, policy_type, create_time, update_time (all nil)
+			patch := &v1alpha1.Policy{
+				DisplayName: strPtr("New Name"),
+			}
+			updated, err := policyService.UpdatePolicy(ctx, clientID, patch)
+			Expect(err).To(BeNil())
+			Expect(*updated.DisplayName).To(Equal("New Name"))
+			Expect(*updated.Id).To(Equal(*created.Id))
+			Expect(*updated.Path).To(Equal(*created.Path))
+			Expect(*updated.PolicyType).To(Equal(*created.PolicyType))
+			Expect(updated.CreateTime).NotTo(BeNil())
+			Expect(updated.CreateTime.Equal(*created.CreateTime)).To(BeTrue())
 		})
 	})
 
