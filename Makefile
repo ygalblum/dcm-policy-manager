@@ -1,4 +1,8 @@
 BINARY_NAME := policy-manager
+# COMPOSE: compose command. Set to override; otherwise auto-detect podman-compose or docker-compose.
+COMPOSE ?= $(shell command -v podman-compose >/dev/null 2>&1 && echo podman-compose || \
+	(command -v docker-compose >/dev/null 2>&1 && echo docker-compose || \
+	(echo "docker compose")))
 
 build:
 	go build -o bin/$(BINARY_NAME) ./cmd/$(BINARY_NAME)
@@ -16,7 +20,7 @@ vet:
 	go vet ./...
 
 test:
-	go run github.com/onsi/ginkgo/v2/ginkgo -r --randomize-all --fail-on-pending
+	go run github.com/onsi/ginkgo/v2/ginkgo -r --randomize-all --fail-on-pending --skip-package=e2e
 
 tidy:
 	go mod tidy
@@ -55,4 +59,16 @@ check-generate-api: generate-api
 check-aep:
 	spectral lint --fail-severity=warn ./api/v1alpha1/openapi.yaml
 
-.PHONY: build run clean fmt vet test tidy generate-types generate-spec generate-server generate-client generate-api check-generate-api check-aep
+# E2E test targets
+test-e2e:
+	go run github.com/onsi/ginkgo/v2/ginkgo -r --randomize-all --fail-on-pending -tags=e2e ./test/e2e
+
+e2e-up:
+	$(COMPOSE) up -d --build
+
+e2e-down:
+	$(COMPOSE) down -v
+
+test-e2e-full: e2e-up test-e2e e2e-down
+
+.PHONY: build run clean fmt vet test tidy generate-types generate-spec generate-server generate-client generate-api check-generate-api check-aep test-e2e e2e-up e2e-down test-e2e-full
