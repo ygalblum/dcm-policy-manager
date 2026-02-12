@@ -49,15 +49,44 @@ generate-client:
 		-o pkg/client/client.gen.go \
 		api/v1alpha1/openapi.yaml
 
-generate-api: generate-types generate-spec generate-server generate-client
+generate-crud-api: generate-types generate-spec generate-server generate-client
 
-check-generate-api: generate-api
-	git diff --exit-code api/ internal/api/server/ pkg/client/ || \
-		(echo "Generated files out of sync. Run 'make generate-api'." && exit 1)
+# Engine API code generation targets
+generate-engine-types:
+	go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen \
+		--config=api/v1alpha1/engine/types.gen.cfg \
+		-o api/v1alpha1/engine/types.gen.go \
+		api/v1alpha1/engine/openapi.yaml
 
-# Check AEP compliance
-check-aep:
+generate-engine-spec:
+	go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen \
+		--config=api/v1alpha1/engine/spec.gen.cfg \
+		-o api/v1alpha1/engine/spec.gen.go \
+		api/v1alpha1/engine/openapi.yaml
+
+generate-engine-server:
+	go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen \
+		--config=internal/api/engine/server.gen.cfg \
+		-o internal/api/engine/server.gen.go \
+		api/v1alpha1/engine/openapi.yaml
+
+generate-engine-client:
+	go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen \
+		--config=pkg/engineclient/client.gen.cfg \
+		-o pkg/engineclient/client.gen.go \
+		api/v1alpha1/engine/openapi.yaml
+
+generate-engine-api: generate-engine-types generate-engine-spec generate-engine-server generate-engine-client
+
+generate-api: generate-crud-api generate-engine-api
+
+check-aep-engine:
+	spectral lint --fail-severity=warn ./api/v1alpha1/engine/openapi.yaml
+
+check-aep-api:
 	spectral lint --fail-severity=warn ./api/v1alpha1/openapi.yaml
+# Check AEP compliance
+check-aep: check-aep-api check-aep-engine
 
 # E2E test targets
 test-e2e:
@@ -71,4 +100,4 @@ e2e-down:
 
 test-e2e-full: e2e-up test-e2e e2e-down
 
-.PHONY: build run clean fmt vet test tidy generate-types generate-spec generate-server generate-client generate-api check-generate-api check-aep test-e2e e2e-up e2e-down test-e2e-full
+.PHONY: build run clean fmt vet test tidy generate-types generate-spec generate-server generate-client generate-api generate-crud-api generate-engine-types generate-engine-spec generate-engine-server generate-engine-client generate-engine-api check-generate-api check-aep test-e2e e2e-up e2e-down test-e2e-full
