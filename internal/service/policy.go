@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"regexp"
 	"strings"
 
 	"github.com/dcm-project/policy-manager/api/v1alpha1"
+	"github.com/dcm-project/policy-manager/internal/opa"
 	"github.com/dcm-project/policy-manager/internal/store"
 	"github.com/google/uuid"
 )
@@ -34,15 +36,17 @@ type PolicyService interface {
 
 // PolicyServiceImpl implements the PolicyService interface.
 type PolicyServiceImpl struct {
-	store store.Store
+	store     store.Store
+	opaClient opa.Client
 }
 
 var _ PolicyService = (*PolicyServiceImpl)(nil)
 
 // NewPolicyService creates a new PolicyService instance.
-func NewPolicyService(store store.Store) *PolicyServiceImpl {
+func NewPolicyService(store store.Store, opaClient opa.Client) *PolicyServiceImpl {
 	return &PolicyServiceImpl{
-		store: store,
+		store:     store,
+		opaClient: opaClient,
 	}
 }
 
@@ -119,10 +123,22 @@ func (s *PolicyServiceImpl) CreatePolicy(ctx context.Context, policy v1alpha1.Po
 	// Convert API model to DB model (strips RegoCode)
 	dbPolicy := APIToDBModel(policy, *policyID)
 
-	// Create policy in store
+	// Create policy in store first (duplicate ID fails here without touching OPA)
 	created, err := s.store.Policy().Create(ctx, dbPolicy)
 	if err != nil {
 		return nil, processPolicyStoreError(err, dbPolicy, "create")
+	}
+
+	// Store Rego in OPA (validates syntax and stores)
+	if err := s.opaClient.StorePolicy(ctx, *policyID, *policy.RegoCode); err != nil {
+		// Rollback: Delete from DB since OPA store failed
+		if delErr := s.store.Policy().Delete(ctx, *policyID); delErr != nil {
+			slog.Error("Failed to rollback DB policy after OPA store failure",
+				"policy_id", *policyID,
+				"db_error", delErr,
+				"opa_error", err)
+		}
+		return nil, handleOPAError(err, "create")
 	}
 
 	// Convert back to API model with empty RegoCode and set Path
@@ -142,8 +158,16 @@ func (s *PolicyServiceImpl) GetPolicy(ctx context.Context, id string) (*v1alpha1
 		return nil, NewInternalError("Failed to get policy", err.Error(), err)
 	}
 
-	// Convert to API model with empty RegoCode
+	// Convert to API model
 	apiPolicy := DBToAPIModel(dbPolicy)
+
+	// Retrieve Rego code from OPA
+	regoCode, err := s.opaClient.GetPolicy(ctx, id)
+	if err != nil {
+		// Missing Rego in OPA is an error condition (every policy must have Rego)
+		return nil, handleOPAError(err, "get")
+	}
+	apiPolicy.RegoCode = &regoCode
 
 	return &apiPolicy, nil
 }
@@ -341,10 +365,34 @@ func (s *PolicyServiceImpl) UpdatePolicy(ctx context.Context, id string, patch *
 	}
 	merged := mergePolicyOntoPolicy(patch, existing)
 
+	// If RegoCode is being updated, handle OPA update with rollback capability
+	var oldRegoCode string
+	if patch != nil && patch.RegoCode != nil {
+		// Get old Rego from OPA for potential rollback
+		oldRegoCode, err = s.opaClient.GetPolicy(ctx, id)
+		if err != nil {
+			return nil, handleOPAError(err, "update")
+		}
+
+		// Store new Rego in OPA (validates syntax and stores)
+		if err := s.opaClient.StorePolicy(ctx, id, *patch.RegoCode); err != nil {
+			return nil, handleOPAError(err, "update")
+		}
+	}
+
 	// Convert API model to DB model and update store
 	dbPolicy := APIToDBModel(merged, id)
 	updated, err := s.store.Policy().Update(ctx, dbPolicy)
 	if err != nil {
+		// Rollback: Restore old Rego if we have it
+		if patch != nil && patch.RegoCode != nil && oldRegoCode != "" {
+			if rollbackErr := s.opaClient.StorePolicy(ctx, id, oldRegoCode); rollbackErr != nil {
+				slog.Error("Failed to rollback OPA policy after DB update failure",
+					"policy_id", id,
+					"opa_error", rollbackErr,
+					"db_error", err)
+			}
+		}
 		return nil, processPolicyStoreError(err, dbPolicy, "update")
 	}
 
@@ -356,13 +404,20 @@ func (s *PolicyServiceImpl) UpdatePolicy(ctx context.Context, id string, patch *
 
 // DeletePolicy deletes a policy by ID.
 func (s *PolicyServiceImpl) DeletePolicy(ctx context.Context, id string) error {
-	// Delete policy from store
+	// Delete policy from store first
 	err := s.store.Policy().Delete(ctx, id)
 	if err != nil {
 		if errors.Is(err, store.ErrPolicyNotFound) {
 			return NewPolicyNotFoundError(id)
 		}
 		return NewInternalError("Failed to delete policy", err.Error(), err)
+	}
+
+	// Best effort cleanup from OPA (log errors but don't fail the operation)
+	if err := s.opaClient.DeletePolicy(ctx, id); err != nil {
+		slog.Warn("Failed to delete policy from OPA (orphaned policy may exist)",
+			"policy_id", id,
+			"error", err)
 	}
 
 	return nil

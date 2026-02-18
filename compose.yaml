@@ -15,6 +15,18 @@ services:
       timeout: 5s
       retries: 5
 
+  opa:
+    image: docker.io/openpolicyagent/opa:latest-static
+    command:
+      - "run"
+      - "--server"
+      - "--addr=0.0.0.0:8181"
+    volumes:
+      - policy_policies:/policies
+    ports:
+      - "8181:8181"
+    # Podman runs health checks inside the container which does not have cURL or any other tools.
+
   policy-manager:
     build:
       context: .
@@ -22,6 +34,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      opa:
+        condition: service_started
     environment:
       BIND_ADDRESS: "0.0.0.0:8080"
       ENGINE_BIND_ADDRESS: "0.0.0.0:8081"
@@ -32,6 +46,8 @@ services:
       DB_USER: test_user
       DB_PASSWORD: test_password
       LOG_LEVEL: debug
+      OPA_URL: "http://opa:8181"
+      OPA_TIMEOUT: "10s"
     ports:
       - "8080:8080"
       - "8081:8081"
@@ -44,3 +60,4 @@ services:
 
 volumes:
   postgres_data:
+  policy_policies:
