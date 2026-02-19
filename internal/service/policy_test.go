@@ -22,9 +22,10 @@ func policyTypePtr(t v1alpha1.PolicyPolicyType) *v1alpha1.PolicyPolicyType { ret
 
 // MockOPAClient is a function-based mock for the OPA client
 type MockOPAClient struct {
-	StorePolicyFunc  func(ctx context.Context, policyID string, regoCode string) error
-	GetPolicyFunc    func(ctx context.Context, policyID string) (string, error)
-	DeletePolicyFunc func(ctx context.Context, policyID string) error
+	StorePolicyFunc    func(ctx context.Context, policyID string, regoCode string) error
+	GetPolicyFunc      func(ctx context.Context, policyID string) (string, error)
+	DeletePolicyFunc   func(ctx context.Context, policyID string) error
+	EvaluatePolicyFunc func(ctx context.Context, packageName string, input map[string]any) (*opa.EvaluationResult, error)
 }
 
 func (m *MockOPAClient) StorePolicy(ctx context.Context, policyID string, regoCode string) error {
@@ -46,6 +47,13 @@ func (m *MockOPAClient) DeletePolicy(ctx context.Context, policyID string) error
 		return m.DeletePolicyFunc(ctx, policyID)
 	}
 	return nil
+}
+
+func (m *MockOPAClient) EvaluatePolicy(ctx context.Context, packageName string, input map[string]any) (*opa.EvaluationResult, error) {
+	if m.EvaluatePolicyFunc != nil {
+		return m.EvaluatePolicyFunc(ctx, packageName, input)
+	}
+	return &opa.EvaluationResult{Defined: false}, nil
 }
 
 var _ = Describe("PolicyService", func() {

@@ -30,6 +30,11 @@ type Client interface {
 	// Returns nil even if the policy doesn't exist (idempotent)
 	// Returns ErrOPAUnavailable if OPA is unreachable
 	DeletePolicy(ctx context.Context, policyID string) error
+
+	// EvaluatePolicy evaluates input against a policy by package name
+	// Returns ErrPolicyNotFound if the policy doesn't exist
+	// Returns ErrOPAUnavailable if OPA is unreachable
+	EvaluatePolicy(ctx context.Context, packageName string, input map[string]any) (*EvaluationResult, error)
 }
 
 // HTTPClient implements the Client interface using HTTP requests to OPA
@@ -156,4 +161,66 @@ func handleDeletePolicyResponse(resp *http.Response) error {
 
 	body, _ := io.ReadAll(resp.Body)
 	return fmt.Errorf("%w: status %d: %s", ErrOPAUnavailable, resp.StatusCode, string(body))
+}
+
+// EvaluatePolicy evaluates input against a policy using POST /v1/data/{packageName}/main
+func (c *HTTPClient) EvaluatePolicy(ctx context.Context, packageName string, input map[string]any) (*EvaluationResult, error) {
+	// Convert package name dots to slashes for OPA data API path
+	// e.g., "policies.my_policy" becomes "policies/my_policy"
+	packagePath := strings.ReplaceAll(packageName, ".", "/")
+	url := fmt.Sprintf("%s/v1/data/%s/main", c.baseURL, packagePath)
+
+	// Construct the request body with input
+	requestBody := map[string]any{
+		"input": input,
+	}
+
+	bodyBytes, err := json.Marshal(requestBody)
+	if err != nil {
+		return nil, fmt.Errorf("%w: failed to marshal input: %v", ErrClientInternal, err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader(string(bodyBytes)))
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrClientInternal, err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrOPAUnavailable, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, ErrPolicyNotFound
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("%w: status %d: %s", ErrOPAUnavailable, resp.StatusCode, string(body))
+	}
+
+	// Parse the response
+	var result struct {
+		Result map[string]any `json:"result"`
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("%w: failed to read response: %v", ErrClientInternal, err)
+	}
+
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("%w: failed to parse response: %v", ErrClientInternal, err)
+	}
+
+	// Check if the result is defined (not undefined)
+	// If the result map is present, the policy is defined
+	evalResult := &EvaluationResult{
+		Result:  result.Result,
+		Defined: result.Result != nil,
+	}
+
+	return evalResult, nil
 }

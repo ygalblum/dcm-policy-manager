@@ -60,8 +60,9 @@ func run() int {
 	// Initialize OPA client
 	opaClient := opa.NewClient(cfg.OPA.URL, opaTimeout)
 
-	// Create service
+	// Create services
 	policyService := service.NewPolicyService(dataStore, opaClient)
+	evaluationService := service.NewEvaluationService(dataStore.Policy(), opaClient)
 
 	// Create public API handler
 	policyHandler := v1alpha1.NewPolicyHandler(policyService)
@@ -77,8 +78,8 @@ func run() int {
 	// Create public API server
 	publicSrv := apiserver.New(cfg, publicListener, policyHandler)
 
-	// Create private engine API handler
-	engineHandler := engine.NewHandler()
+	// Create engine API handler
+	engineHandler := engine.NewHandler(evaluationService)
 
 	// Create private engine API TCP listener
 	engineListener, err := net.Listen("tcp", cfg.Service.EngineBindAddress)

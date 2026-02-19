@@ -19,6 +19,8 @@ const (
 	ErrorTypeAlreadyExists      ErrorType = "ALREADY_EXISTS"
 	ErrorTypeInternal           ErrorType = "INTERNAL"
 	ErrorTypeFailedPrecondition ErrorType = "FAILED_PRECONDITION"
+	ErrorTypeRejected           ErrorType = "REJECTED"        // Policy evaluation rejected
+	ErrorTypePolicyConflict     ErrorType = "POLICY_CONFLICT" // Policy constraint conflict
 )
 
 // ServiceError represents a structured error from the service layer
@@ -122,5 +124,23 @@ func NewFailedPreconditionError(message, detail string) *ServiceError {
 		Type:    ErrorTypeFailedPrecondition,
 		Message: message,
 		Detail:  detail,
+	}
+}
+
+// NewPolicyRejectedError creates a new policy rejected error (406 Not Acceptable)
+func NewPolicyRejectedError(policyID, reason string) *ServiceError {
+	return &ServiceError{
+		Type:    ErrorTypeRejected,
+		Message: fmt.Sprintf("Request rejected by policy '%s'", policyID),
+		Detail:  reason,
+	}
+}
+
+// NewPolicyConflictError creates a new policy conflict error (409 Conflict)
+func NewPolicyConflictError(lowerPolicyID, field, higherPolicyID string) *ServiceError {
+	return &ServiceError{
+		Type:    ErrorTypePolicyConflict,
+		Message: fmt.Sprintf("Policy '%s' attempted to modify field '%s' which was set by higher-priority policy '%s'", lowerPolicyID, field, higherPolicyID),
+		Detail:  fmt.Sprintf("Field '%s' is immutable after being set by policy '%s'", field, higherPolicyID),
 	}
 }
