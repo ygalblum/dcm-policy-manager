@@ -10,6 +10,7 @@ import (
 
 	"github.com/dcm-project/policy-manager/api/v1alpha1"
 	"github.com/dcm-project/policy-manager/internal/opa"
+	"github.com/dcm-project/policy-manager/internal/rego"
 	"github.com/dcm-project/policy-manager/internal/store"
 	"github.com/google/uuid"
 )
@@ -120,8 +121,19 @@ func (s *PolicyServiceImpl) CreatePolicy(ctx context.Context, policy v1alpha1.Po
 		return nil, err
 	}
 
+	// Extract package name from Rego code (fail fast before any storage)
+	packageName, err := rego.ExtractPackageName(*policy.RegoCode)
+	if err != nil {
+		return nil, NewInvalidArgumentError(
+			"Invalid Rego code",
+			fmt.Sprintf("Failed to extract package name: %v", err),
+		)
+	}
+
 	// Convert API model to DB model (strips RegoCode)
 	dbPolicy := APIToDBModel(policy, *policyID)
+	// Set package name extracted from Rego code
+	dbPolicy.PackageName = packageName
 
 	// Create policy in store first (duplicate ID fails here without touching OPA)
 	created, err := s.store.Policy().Create(ctx, dbPolicy)
@@ -367,7 +379,18 @@ func (s *PolicyServiceImpl) UpdatePolicy(ctx context.Context, id string, patch *
 
 	// If RegoCode is being updated, handle OPA update with rollback capability
 	var oldRegoCode string
+	var newPackageName string
 	if patch != nil && patch.RegoCode != nil {
+		// Extract package name from new Rego code (fail fast before OPA storage)
+		packageName, err := rego.ExtractPackageName(*patch.RegoCode)
+		if err != nil {
+			return nil, NewInvalidArgumentError(
+				"Invalid Rego code",
+				fmt.Sprintf("Failed to extract package name: %v", err),
+			)
+		}
+		newPackageName = packageName
+
 		// Get old Rego from OPA for potential rollback
 		oldRegoCode, err = s.opaClient.GetPolicy(ctx, id)
 		if err != nil {
@@ -382,6 +405,10 @@ func (s *PolicyServiceImpl) UpdatePolicy(ctx context.Context, id string, patch *
 
 	// Convert API model to DB model and update store
 	dbPolicy := APIToDBModel(merged, id)
+	// Update package name if RegoCode was changed
+	if patch != nil && patch.RegoCode != nil {
+		dbPolicy.PackageName = newPackageName
+	}
 	updated, err := s.store.Policy().Update(ctx, dbPolicy)
 	if err != nil {
 		// Rollback: Restore old Rego if we have it

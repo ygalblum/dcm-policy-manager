@@ -187,7 +187,7 @@ func (s *PolicyStore) Update(ctx context.Context, policy model.Policy) (*model.P
 	// Use Select to update all mutable fields including zero values
 	// Immutable fields (id, policy_type, create_time) are not updated
 	result := s.db.WithContext(ctx).Model(&policy).
-		Select("display_name", "description", "label_selector", "priority", "enabled").
+		Select("display_name", "description", "label_selector", "priority", "package_name", "enabled").
 		Clauses(clause.Returning{}).
 		Updates(&policy)
 	if result.Error != nil {

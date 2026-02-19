@@ -13,6 +13,7 @@ const (
 
 // APIToDBModel converts an API Policy model to a database Policy model.
 // RegoCode is stripped as it's not stored in the database.
+// PackageName must be set separately by the caller after extracting it from the Rego code.
 // All Policy fields are optional in the schema; required fields for create are enforced by the service.
 func APIToDBModel(api v1alpha1.Policy, id string) model.Policy {
 	db := model.Policy{ID: id}
