@@ -18,4 +18,4 @@ jobs:
       version: ${{ github.event.inputs.version }}
     secrets:
       quay-username: ${{ secrets.QUAY_USERNAME }}
-      quay-password: ${{ secrets.QUAY_PASSWORD }}
+      quay-password: ${{ secrets.QUAY_TOKEN }}
