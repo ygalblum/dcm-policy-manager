@@ -1,3 +1,4 @@
+// Package apiserver provides the HTTP server for the policy management REST API.
 package apiserver
 
 import (

@@ -160,9 +160,7 @@ func (c *ConstraintContext) MergeSPConstraints(sp *opa.ServiceProviderConstraint
 	}
 
 	// AND patterns
-	for _, p := range patterns {
-		c.serviceProviderConstraints.Patterns = append(c.serviceProviderConstraints.Patterns, p)
-	}
+	c.serviceProviderConstraints.Patterns = append(c.serviceProviderConstraints.Patterns, patterns...)
 
 	return nil
 }

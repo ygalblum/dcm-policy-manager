@@ -22,6 +22,6 @@ var _ = Describe("InitDB", func() {
 		Expect(db).NotTo(BeNil())
 
 		sqlDB, _ := db.DB()
-		sqlDB.Close()
+		_ = sqlDB.Close()
 	})
 })

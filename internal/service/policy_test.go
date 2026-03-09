@@ -79,17 +79,17 @@ var _ = Describe("PolicyService", func() {
 		// Create mock OPA client with in-memory storage
 		opaStorage = make(map[string]string)
 		mockOPA = &MockOPAClient{
-			StorePolicyFunc: func(ctx context.Context, policyID string, regoCode string) error {
+			StorePolicyFunc: func(_ context.Context, policyID string, regoCode string) error {
 				opaStorage[policyID] = regoCode
 				return nil
 			},
-			GetPolicyFunc: func(ctx context.Context, policyID string) (string, error) {
+			GetPolicyFunc: func(_ context.Context, policyID string) (string, error) {
 				if code, ok := opaStorage[policyID]; ok {
 					return code, nil
 				}
 				return "", opa.ErrPolicyNotFound
 			},
-			DeletePolicyFunc: func(ctx context.Context, policyID string) error {
+			DeletePolicyFunc: func(_ context.Context, policyID string) error {
 				delete(opaStorage, policyID)
 				return nil
 			},
@@ -101,7 +101,7 @@ var _ = Describe("PolicyService", func() {
 
 	AfterEach(func() {
 		sqlDB, _ := db.DB()
-		sqlDB.Close()
+		_ = sqlDB.Close()
 	})
 
 	Describe("CreatePolicy", func() {
@@ -117,7 +117,7 @@ var _ = Describe("PolicyService", func() {
 
 			created, err := policyService.CreatePolicy(ctx, policy, &clientID)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(created).NotTo(BeNil())
 			Expect(*created.Id).To(Equal("my-custom-policy"))
 			Expect(*created.Path).To(Equal("policies/my-custom-policy"))
@@ -142,7 +142,7 @@ var _ = Describe("PolicyService", func() {
 
 			created, err := policyService.CreatePolicy(ctx, policy, nil)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(created).NotTo(BeNil())
 			Expect(*created.Id).NotTo(BeEmpty())
 			Expect(*created.Path).To(HavePrefix("policies/"))
@@ -159,7 +159,7 @@ var _ = Describe("PolicyService", func() {
 
 			_, err := policyService.CreatePolicy(ctx, policy, nil)
 
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			serviceErr, ok := err.(*service.ServiceError)
 			Expect(ok).To(BeTrue())
 			Expect(serviceErr.Type).To(Equal(service.ErrorTypeInvalidArgument))
@@ -177,7 +177,7 @@ var _ = Describe("PolicyService", func() {
 
 			_, err := policyService.CreatePolicy(ctx, policy, nil)
 
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			serviceErr, ok := err.(*service.ServiceError)
 			Expect(ok).To(BeTrue())
 			Expect(serviceErr.Type).To(Equal(service.ErrorTypeInvalidArgument))
@@ -195,7 +195,7 @@ var _ = Describe("PolicyService", func() {
 
 			_, err := policyService.CreatePolicy(ctx, policy, nil)
 
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			serviceErr, ok := err.(*service.ServiceError)
 			Expect(ok).To(BeTrue())
 			Expect(serviceErr.Type).To(Equal(service.ErrorTypeInvalidArgument))
@@ -213,7 +213,7 @@ var _ = Describe("PolicyService", func() {
 
 			created, err := policyService.CreatePolicy(ctx, policy, nil)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(created).NotTo(BeNil())
 			Expect(*created.Priority).To(Equal(int32(1)))
 		})
@@ -229,7 +229,7 @@ var _ = Describe("PolicyService", func() {
 
 			created, err := policyService.CreatePolicy(ctx, policy, nil)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(created).NotTo(BeNil())
 			Expect(*created.Priority).To(Equal(int32(1000)))
 		})
@@ -245,7 +245,7 @@ var _ = Describe("PolicyService", func() {
 
 			_, err := policyService.CreatePolicy(ctx, policy, nil)
 
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			serviceErr, ok := err.(*service.ServiceError)
 			Expect(ok).To(BeTrue())
 			Expect(serviceErr.Type).To(Equal(service.ErrorTypeInvalidArgument))
@@ -263,7 +263,7 @@ var _ = Describe("PolicyService", func() {
 
 			created, err := policyService.CreatePolicy(ctx, policy, nil)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(created).NotTo(BeNil())
 			Expect(*created.Priority).To(Equal(int32(500)))
 		})
@@ -277,7 +277,7 @@ var _ = Describe("PolicyService", func() {
 
 			_, err := policyService.CreatePolicy(ctx, policy, nil)
 
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			serviceErr, ok := err.(*service.ServiceError)
 			Expect(ok).To(BeTrue())
 			Expect(serviceErr.Type).To(Equal(service.ErrorTypeInvalidArgument))
@@ -293,7 +293,7 @@ var _ = Describe("PolicyService", func() {
 
 			_, err := policyService.CreatePolicy(ctx, policy, &invalidID)
 
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			serviceErr, ok := err.(*service.ServiceError)
 			Expect(ok).To(BeTrue())
 			Expect(serviceErr.Type).To(Equal(service.ErrorTypeInvalidArgument))
@@ -310,12 +310,12 @@ var _ = Describe("PolicyService", func() {
 
 			// Create first policy
 			_, err := policyService.CreatePolicy(ctx, policy, &clientID)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Try to create duplicate
 			_, err = policyService.CreatePolicy(ctx, policy, &clientID)
 
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			serviceErr, ok := err.(*service.ServiceError)
 			Expect(ok).To(BeTrue())
 			Expect(serviceErr.Type).To(Equal(service.ErrorTypeAlreadyExists))
@@ -333,7 +333,7 @@ var _ = Describe("PolicyService", func() {
 			}
 
 			_, err := policyService.CreatePolicy(ctx, policy1, &clientID)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			policy2 := v1alpha1.Policy{
 				DisplayName: strPtr("Second Policy"),
@@ -341,13 +341,13 @@ var _ = Describe("PolicyService", func() {
 				RegoCode:    strPtr("package overwrite\nallow = false"),
 			}
 			_, err = policyService.CreatePolicy(ctx, policy2, &clientID)
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			serviceErr, ok := err.(*service.ServiceError)
 			Expect(ok).To(BeTrue())
 			Expect(serviceErr.Type).To(Equal(service.ErrorTypeAlreadyExists))
 
 			retrieved, err := policyService.GetPolicy(ctx, clientID)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(retrieved.RegoCode).NotTo(BeNil())
 			Expect(*retrieved.RegoCode).To(Equal(originalRego))
 		})
@@ -360,11 +360,11 @@ var _ = Describe("PolicyService", func() {
 			}
 			id1 := "policy-dn-1"
 			_, err := policyService.CreatePolicy(ctx, policy, &id1)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			id2 := "policy-dn-2"
 			_, err = policyService.CreatePolicy(ctx, policy, &id2)
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			serviceErr, ok := err.(*service.ServiceError)
 			Expect(ok).To(BeTrue())
 			Expect(serviceErr.Type).To(Equal(service.ErrorTypeAlreadyExists))
@@ -381,7 +381,7 @@ var _ = Describe("PolicyService", func() {
 			}
 			id1 := "policy-prio-1"
 			_, err := policyService.CreatePolicy(ctx, policy, &id1)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			policy2 := v1alpha1.Policy{
 				DisplayName: strPtr("Policy Two"),
@@ -391,7 +391,7 @@ var _ = Describe("PolicyService", func() {
 			}
 			id2 := "policy-prio-2"
 			_, err = policyService.CreatePolicy(ctx, policy2, &id2)
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			serviceErr, ok := err.(*service.ServiceError)
 			Expect(ok).To(BeTrue())
 			Expect(serviceErr.Type).To(Equal(service.ErrorTypeAlreadyExists))
@@ -408,7 +408,7 @@ var _ = Describe("PolicyService", func() {
 
 			created, err := policyService.CreatePolicy(ctx, policy, &clientID)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(*created.Enabled).To(BeTrue())
 			Expect(*created.Priority).To(Equal(int32(500)))
 		})
@@ -432,7 +432,7 @@ var _ = Describe("PolicyService", func() {
 
 			created, err := policyService.CreatePolicy(ctx, policy, &clientID)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(*created.Enabled).To(BeFalse())
 			Expect(*created.Priority).To(Equal(int32(100)))
 			Expect(*created.Description).To(Equal("Custom description"))
@@ -450,12 +450,12 @@ var _ = Describe("PolicyService", func() {
 				RegoCode:    strPtr("package test"),
 			}
 			created, err := policyService.CreatePolicy(ctx, policy, &clientID)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Get the policy
 			retrieved, err := policyService.GetPolicy(ctx, "get-test")
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(retrieved).NotTo(BeNil())
 			Expect(*retrieved.Id).To(Equal("get-test"))
 			Expect(*retrieved.Path).To(Equal("policies/get-test"))
@@ -469,7 +469,7 @@ var _ = Describe("PolicyService", func() {
 		It("should return NotFound error for non-existent policy", func() {
 			_, err := policyService.GetPolicy(ctx, "non-existent")
 
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			serviceErr, ok := err.(*service.ServiceError)
 			Expect(ok).To(BeTrue())
 			Expect(serviceErr.Type).To(Equal(service.ErrorTypeNotFound))
@@ -505,14 +505,14 @@ var _ = Describe("PolicyService", func() {
 				}
 				id := p.id
 				_, err := policyService.CreatePolicy(ctx, policy, &id)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 			}
 		})
 
 		It("should list all policies with default ordering", func() {
 			result, err := policyService.ListPolicies(ctx, nil, nil, nil, nil)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(result).NotTo(BeNil())
 			Expect(result.Policies).To(HaveLen(4))
 			// Default order is policy_type ASC, priority ASC, id ASC
@@ -527,7 +527,7 @@ var _ = Describe("PolicyService", func() {
 			filter := "policy_type='GLOBAL'"
 			result, err := policyService.ListPolicies(ctx, &filter, nil, nil, nil)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(result.Policies).To(HaveLen(2))
 			for _, p := range result.Policies {
 				Expect(p.PolicyType).NotTo(BeNil())
@@ -539,7 +539,7 @@ var _ = Describe("PolicyService", func() {
 			filter := "policy_type='USER'"
 			result, err := policyService.ListPolicies(ctx, &filter, nil, nil, nil)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(result.Policies).To(HaveLen(2))
 			for _, p := range result.Policies {
 				Expect(p.PolicyType).NotTo(BeNil())
@@ -551,7 +551,7 @@ var _ = Describe("PolicyService", func() {
 			filter := "enabled=true"
 			result, err := policyService.ListPolicies(ctx, &filter, nil, nil, nil)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(result.Policies).To(HaveLen(2))
 			for _, p := range result.Policies {
 				Expect(*p.Enabled).To(BeTrue())
@@ -562,7 +562,7 @@ var _ = Describe("PolicyService", func() {
 			filter := "enabled=false"
 			result, err := policyService.ListPolicies(ctx, &filter, nil, nil, nil)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(result.Policies).To(HaveLen(2))
 			for _, p := range result.Policies {
 				Expect(*p.Enabled).To(BeFalse())
@@ -573,7 +573,7 @@ var _ = Describe("PolicyService", func() {
 			filter := "policy_type='GLOBAL' AND enabled=true"
 			result, err := policyService.ListPolicies(ctx, &filter, nil, nil, nil)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(result.Policies).To(HaveLen(1))
 			Expect(*result.Policies[0].Id).To(Equal("policy-1"))
 		})
@@ -582,7 +582,7 @@ var _ = Describe("PolicyService", func() {
 			orderBy := "priority desc"
 			result, err := policyService.ListPolicies(ctx, nil, &orderBy, nil, nil)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(result.Policies).To(HaveLen(4))
 			Expect(*result.Policies[0].Id).To(Equal("policy-4"))
 			Expect(*result.Policies[1].Id).To(Equal("policy-3"))
@@ -594,14 +594,14 @@ var _ = Describe("PolicyService", func() {
 			pageSize := int32(2)
 			result, err := policyService.ListPolicies(ctx, nil, nil, nil, &pageSize)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(result.Policies).To(HaveLen(2))
 			Expect(result.NextPageToken).NotTo(BeNil())
 
 			// Get next page
 			result2, err := policyService.ListPolicies(ctx, nil, nil, result.NextPageToken, &pageSize)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(result2.Policies).To(HaveLen(2))
 			Expect(result2.NextPageToken).To(BeNil()) // No more pages
 		})
@@ -610,7 +610,7 @@ var _ = Describe("PolicyService", func() {
 			pageSize := int32(0)
 			_, err := policyService.ListPolicies(ctx, nil, nil, nil, &pageSize)
 
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			serviceErr, ok := err.(*service.ServiceError)
 			Expect(ok).To(BeTrue())
 			Expect(serviceErr.Type).To(Equal(service.ErrorTypeInvalidArgument))
@@ -621,7 +621,7 @@ var _ = Describe("PolicyService", func() {
 			pageSize := int32(1001)
 			_, err := policyService.ListPolicies(ctx, nil, nil, nil, &pageSize)
 
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			serviceErr, ok := err.(*service.ServiceError)
 			Expect(ok).To(BeTrue())
 			Expect(serviceErr.Type).To(Equal(service.ErrorTypeInvalidArgument))
@@ -632,7 +632,7 @@ var _ = Describe("PolicyService", func() {
 			filter := "invalid_field='value'"
 			_, err := policyService.ListPolicies(ctx, &filter, nil, nil, nil)
 
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			serviceErr, ok := err.(*service.ServiceError)
 			Expect(ok).To(BeTrue())
 			Expect(serviceErr.Type).To(Equal(service.ErrorTypeInvalidArgument))
@@ -642,7 +642,7 @@ var _ = Describe("PolicyService", func() {
 			orderBy := "invalid_field asc"
 			_, err := policyService.ListPolicies(ctx, nil, &orderBy, nil, nil)
 
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			serviceErr, ok := err.(*service.ServiceError)
 			Expect(ok).To(BeTrue())
 			Expect(serviceErr.Type).To(Equal(service.ErrorTypeInvalidArgument))
@@ -663,7 +663,7 @@ var _ = Describe("PolicyService", func() {
 				Priority:    &priority,
 			}
 			created, err := policyService.CreatePolicy(ctx, policy, &clientID)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// PATCH: only update display_name, enabled, priority, description
 			newEnabled := false
@@ -679,7 +679,7 @@ var _ = Describe("PolicyService", func() {
 
 			updated, err := policyService.UpdatePolicy(ctx, "update-test", patch)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(updated.DisplayName).NotTo(BeNil())
 			Expect(*updated.DisplayName).To(Equal("Updated Name"))
 			Expect(*updated.Enabled).To(BeFalse())
@@ -698,7 +698,7 @@ var _ = Describe("PolicyService", func() {
 				RegoCode:    strPtr("package test"),
 			}
 			_, err := policyService.CreatePolicy(ctx, policy, &clientID)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Try to update with empty RegoCode in patch
 			emptyRego := ""
@@ -708,7 +708,7 @@ var _ = Describe("PolicyService", func() {
 
 			_, err = policyService.UpdatePolicy(ctx, "update-rego-test", patch)
 
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			serviceErr, ok := err.(*service.ServiceError)
 			Expect(ok).To(BeTrue())
 			Expect(serviceErr.Type).To(Equal(service.ErrorTypeInvalidArgument))
@@ -722,7 +722,7 @@ var _ = Describe("PolicyService", func() {
 
 			_, err := policyService.UpdatePolicy(ctx, "non-existent", patch)
 
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			serviceErr, ok := err.(*service.ServiceError)
 			Expect(ok).To(BeTrue())
 			Expect(serviceErr.Type).To(Equal(service.ErrorTypeNotFound))
@@ -740,14 +740,14 @@ var _ = Describe("PolicyService", func() {
 				RegoCode:    &regoCode,
 				Priority:    &prioA,
 			}, &idA)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			_, err = policyService.CreatePolicy(ctx, v1alpha1.Policy{
 				DisplayName: strPtr("Name B"),
 				PolicyType:  policyTypePtr(v1alpha1.GLOBAL),
 				RegoCode:    &regoCode,
 				Priority:    &prioB,
 			}, &idB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			displayNameA := "Name A"
 			patch := &v1alpha1.Policy{
@@ -755,7 +755,7 @@ var _ = Describe("PolicyService", func() {
 				Priority:    &prioB,
 			}
 			_, err = policyService.UpdatePolicy(ctx, "update-dn-b", patch)
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			serviceErr, ok := err.(*service.ServiceError)
 			Expect(ok).To(BeTrue())
 			Expect(serviceErr.Type).To(Equal(service.ErrorTypeAlreadyExists))
@@ -774,14 +774,14 @@ var _ = Describe("PolicyService", func() {
 				RegoCode:    &regoCode,
 				Priority:    &prio200,
 			}, &idA)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			_, err = policyService.CreatePolicy(ctx, v1alpha1.Policy{
 				DisplayName: strPtr("Policy B"),
 				PolicyType:  policyTypePtr(v1alpha1.GLOBAL),
 				RegoCode:    &regoCode,
 				Priority:    &prio300,
 			}, &idB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			displayNameB := "Policy B"
 			patch := &v1alpha1.Policy{
@@ -789,7 +789,7 @@ var _ = Describe("PolicyService", func() {
 				Priority:    &prio200,
 			}
 			_, err = policyService.UpdatePolicy(ctx, "update-prio-b", patch)
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			serviceErr, ok := err.(*service.ServiceError)
 			Expect(ok).To(BeTrue())
 			Expect(serviceErr.Type).To(Equal(service.ErrorTypeAlreadyExists))
@@ -806,7 +806,7 @@ var _ = Describe("PolicyService", func() {
 				Priority:    &priority,
 			}
 			_, err := policyService.CreatePolicy(ctx, policy, &clientID)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			invalidPriority := int32(0)
 			patch := &v1alpha1.Policy{
@@ -815,7 +815,7 @@ var _ = Describe("PolicyService", func() {
 
 			_, err = policyService.UpdatePolicy(ctx, "update-prio-min-test", patch)
 
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			serviceErr, ok := err.(*service.ServiceError)
 			Expect(ok).To(BeTrue())
 			Expect(serviceErr.Type).To(Equal(service.ErrorTypeInvalidArgument))
@@ -832,7 +832,7 @@ var _ = Describe("PolicyService", func() {
 				Priority:    &priority,
 			}
 			_, err := policyService.CreatePolicy(ctx, policy, &clientID)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			invalidPriority := int32(1001)
 			patch := &v1alpha1.Policy{
@@ -841,7 +841,7 @@ var _ = Describe("PolicyService", func() {
 
 			_, err = policyService.UpdatePolicy(ctx, "update-prio-max-test", patch)
 
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			serviceErr, ok := err.(*service.ServiceError)
 			Expect(ok).To(BeTrue())
 			Expect(serviceErr.Type).To(Equal(service.ErrorTypeInvalidArgument))
@@ -858,7 +858,7 @@ var _ = Describe("PolicyService", func() {
 				Priority:    &priority,
 			}
 			_, err := policyService.CreatePolicy(ctx, policy, &clientID)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			newPriority := int32(800)
 			patch := &v1alpha1.Policy{
@@ -867,7 +867,7 @@ var _ = Describe("PolicyService", func() {
 
 			updated, err := policyService.UpdatePolicy(ctx, "update-prio-valid-test", patch)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(updated).NotTo(BeNil())
 			Expect(*updated.Priority).To(Equal(int32(800)))
 		})
@@ -881,7 +881,7 @@ var _ = Describe("PolicyService", func() {
 				RegoCode:    strPtr("package test"),
 			}
 			_, err := policyService.CreatePolicy(ctx, policy, &clientID)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			wrongPath := "policies/other-id"
 			patch := &v1alpha1.Policy{
@@ -889,7 +889,7 @@ var _ = Describe("PolicyService", func() {
 				DisplayName: strPtr("Updated"),
 			}
 			_, err = policyService.UpdatePolicy(ctx, clientID, patch)
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			serviceErr, ok := err.(*service.ServiceError)
 			Expect(ok).To(BeTrue())
 			Expect(serviceErr.Type).To(Equal(service.ErrorTypeInvalidArgument))
@@ -904,7 +904,7 @@ var _ = Describe("PolicyService", func() {
 				RegoCode:    strPtr("package test"),
 			}
 			created, err := policyService.CreatePolicy(ctx, policy, &clientID)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(created.Path).NotTo(BeNil())
 
 			patch := &v1alpha1.Policy{
@@ -912,7 +912,7 @@ var _ = Describe("PolicyService", func() {
 				DisplayName: strPtr("Updated Name"),
 			}
 			updated, err := policyService.UpdatePolicy(ctx, clientID, patch)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(*updated.DisplayName).To(Equal("Updated Name"))
 			Expect(*updated.Path).To(Equal("policies/" + clientID))
 		})
@@ -925,7 +925,7 @@ var _ = Describe("PolicyService", func() {
 				RegoCode:    strPtr("package test"),
 			}
 			_, err := policyService.CreatePolicy(ctx, policy, &clientID)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			wrongID := "other-id"
 			patch := &v1alpha1.Policy{
@@ -933,7 +933,7 @@ var _ = Describe("PolicyService", func() {
 				DisplayName: strPtr("Updated"),
 			}
 			_, err = policyService.UpdatePolicy(ctx, clientID, patch)
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			serviceErr, ok := err.(*service.ServiceError)
 			Expect(ok).To(BeTrue())
 			Expect(serviceErr.Type).To(Equal(service.ErrorTypeInvalidArgument))
@@ -948,14 +948,14 @@ var _ = Describe("PolicyService", func() {
 				RegoCode:    strPtr("package test"),
 			}
 			_, err := policyService.CreatePolicy(ctx, policy, &clientID)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			patch := &v1alpha1.Policy{
 				PolicyType:  policyTypePtr(v1alpha1.USER),
 				DisplayName: strPtr("Updated"),
 			}
 			_, err = policyService.UpdatePolicy(ctx, clientID, patch)
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			serviceErr, ok := err.(*service.ServiceError)
 			Expect(ok).To(BeTrue())
 			Expect(serviceErr.Type).To(Equal(service.ErrorTypeInvalidArgument))
@@ -970,14 +970,14 @@ var _ = Describe("PolicyService", func() {
 				RegoCode:    strPtr("package test"),
 			}
 			created, err := policyService.CreatePolicy(ctx, policy, &clientID)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			patch := &v1alpha1.Policy{
 				PolicyType:  created.PolicyType,
 				DisplayName: strPtr("Updated Name"),
 			}
 			updated, err := policyService.UpdatePolicy(ctx, clientID, patch)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(*updated.DisplayName).To(Equal("Updated Name"))
 			Expect(*updated.PolicyType).To(Equal(v1alpha1.GLOBAL))
 		})
@@ -990,7 +990,7 @@ var _ = Describe("PolicyService", func() {
 				RegoCode:    strPtr("package test"),
 			}
 			_, err := policyService.CreatePolicy(ctx, policy, &clientID)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			otherTime := time.Now().Add(-24 * time.Hour)
 			patch := &v1alpha1.Policy{
@@ -998,7 +998,7 @@ var _ = Describe("PolicyService", func() {
 				DisplayName: strPtr("Updated"),
 			}
 			_, err = policyService.UpdatePolicy(ctx, clientID, patch)
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			serviceErr, ok := err.(*service.ServiceError)
 			Expect(ok).To(BeTrue())
 			Expect(serviceErr.Type).To(Equal(service.ErrorTypeInvalidArgument))
@@ -1013,7 +1013,7 @@ var _ = Describe("PolicyService", func() {
 				RegoCode:    strPtr("package test"),
 			}
 			created, err := policyService.CreatePolicy(ctx, policy, &clientID)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			otherTime := time.Now().Add(24 * time.Hour)
 			patch := &v1alpha1.Policy{
@@ -1021,7 +1021,7 @@ var _ = Describe("PolicyService", func() {
 				DisplayName: strPtr("Updated"),
 			}
 			_, err = policyService.UpdatePolicy(ctx, clientID, patch)
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			serviceErr, ok := err.(*service.ServiceError)
 			Expect(ok).To(BeTrue())
 			Expect(serviceErr.Type).To(Equal(service.ErrorTypeInvalidArgument))
@@ -1042,14 +1042,14 @@ var _ = Describe("PolicyService", func() {
 				RegoCode:    strPtr("package test"),
 			}
 			_, err := policyService.CreatePolicy(ctx, policy, &clientID)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			patch := &v1alpha1.Policy{
 				DisplayName: strPtr("Updated Display"),
 				Description: strPtr("New description"),
 			}
 			updated, err := policyService.UpdatePolicy(ctx, clientID, patch)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(*updated.DisplayName).To(Equal("Updated Display"))
 			Expect(updated.Description).NotTo(BeNil())
 			Expect(*updated.Description).To(Equal("New description"))
@@ -1063,14 +1063,14 @@ var _ = Describe("PolicyService", func() {
 				RegoCode:    strPtr("package test"),
 			}
 			created, err := policyService.CreatePolicy(ctx, policy, &clientID)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Patch omits path, id, policy_type, create_time, update_time (all nil)
 			patch := &v1alpha1.Policy{
 				DisplayName: strPtr("New Name"),
 			}
 			updated, err := policyService.UpdatePolicy(ctx, clientID, patch)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(*updated.DisplayName).To(Equal("New Name"))
 			Expect(*updated.Id).To(Equal(*created.Id))
 			Expect(*updated.Path).To(Equal(*created.Path))
@@ -1090,16 +1090,16 @@ var _ = Describe("PolicyService", func() {
 				RegoCode:    strPtr("package test"),
 			}
 			_, err := policyService.CreatePolicy(ctx, policy, &clientID)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Delete the policy
 			err = policyService.DeletePolicy(ctx, "delete-test")
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Verify it's deleted
 			_, err = policyService.GetPolicy(ctx, "delete-test")
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			serviceErr, ok := err.(*service.ServiceError)
 			Expect(ok).To(BeTrue())
 			Expect(serviceErr.Type).To(Equal(service.ErrorTypeNotFound))
@@ -1108,7 +1108,7 @@ var _ = Describe("PolicyService", func() {
 		It("should return NotFound error for non-existent policy", func() {
 			err := policyService.DeletePolicy(ctx, "non-existent")
 
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			serviceErr, ok := err.(*service.ServiceError)
 			Expect(ok).To(BeTrue())
 			Expect(serviceErr.Type).To(Equal(service.ErrorTypeNotFound))
@@ -1128,7 +1128,7 @@ var _ = Describe("PolicyService", func() {
 
 				created, err := policyService.CreatePolicy(ctx, policy, &clientID)
 
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(created).NotTo(BeNil())
 				Expect(created.Id).NotTo(BeNil())
 				Expect(*created.Id).To(Equal(clientID))
@@ -1136,14 +1136,14 @@ var _ = Describe("PolicyService", func() {
 				Expect(opaStorage[clientID]).To(Equal(regoCode))
 				// Verify GET returns policy with Rego from OPA
 				retrieved, err := policyService.GetPolicy(ctx, clientID)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(retrieved.RegoCode).NotTo(BeNil())
 				Expect(*retrieved.RegoCode).To(Equal(regoCode))
 			})
 
 			It("should reject invalid Rego code", func() {
 				// Override mock to simulate OPA validation error
-				mockOPA.StorePolicyFunc = func(ctx context.Context, policyID string, regoCode string) error {
+				mockOPA.StorePolicyFunc = func(_ context.Context, _ string, _ string) error {
 					return opa.ErrInvalidRego
 				}
 
@@ -1155,7 +1155,7 @@ var _ = Describe("PolicyService", func() {
 
 				_, err := policyService.CreatePolicy(ctx, policy, nil)
 
-				Expect(err).NotTo(BeNil())
+				Expect(err).To(HaveOccurred())
 				serviceErr, ok := err.(*service.ServiceError)
 				Expect(ok).To(BeTrue())
 				Expect(serviceErr.Type).To(Equal(service.ErrorTypeInvalidArgument))
@@ -1166,7 +1166,7 @@ var _ = Describe("PolicyService", func() {
 				clientID := "rollback-test"
 				var opaDeleteCalled bool
 
-				mockOPA.DeletePolicyFunc = func(ctx context.Context, policyID string) error {
+				mockOPA.DeletePolicyFunc = func(_ context.Context, policyID string) error {
 					opaDeleteCalled = true
 					delete(opaStorage, policyID)
 					return nil
@@ -1179,7 +1179,7 @@ var _ = Describe("PolicyService", func() {
 					RegoCode:    strPtr("package test1"),
 				}
 				_, err := policyService.CreatePolicy(ctx, policy1, &clientID)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Try to create duplicate (same client ID) - fails at DB, so OPA is never called for second create
 				policy2 := v1alpha1.Policy{
@@ -1189,14 +1189,14 @@ var _ = Describe("PolicyService", func() {
 				}
 				_, err = policyService.CreatePolicy(ctx, policy2, &clientID)
 
-				Expect(err).NotTo(BeNil())
+				Expect(err).To(HaveOccurred())
 				serviceErr, ok := err.(*service.ServiceError)
 				Expect(ok).To(BeTrue())
 				Expect(serviceErr.Type).To(Equal(service.ErrorTypeAlreadyExists))
 				Expect(opaDeleteCalled).To(BeFalse(), "OPA delete should not be called when duplicate fails at DB")
 				// Original policy and Rego still intact
 				retrieved, err := policyService.GetPolicy(ctx, clientID)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(retrieved.RegoCode).NotTo(BeNil())
 				Expect(*retrieved.RegoCode).To(Equal("package test1"))
 			})
@@ -1212,12 +1212,12 @@ var _ = Describe("PolicyService", func() {
 					RegoCode:    strPtr(regoCode),
 				}
 				_, err := policyService.CreatePolicy(ctx, policy, &clientID)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(opaStorage[clientID]).To(Equal(regoCode))
 
 				retrieved, err := policyService.GetPolicy(ctx, clientID)
 
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(retrieved).NotTo(BeNil())
 				Expect(retrieved.Id).NotTo(BeNil())
 				Expect(*retrieved.Id).To(Equal(clientID))
@@ -1228,7 +1228,7 @@ var _ = Describe("PolicyService", func() {
 			It("should return INTERNAL error when Rego missing in OPA", func() {
 				// Create policy in DB but not in OPA
 				clientID := "missing-rego-test"
-				mockOPA.StorePolicyFunc = func(ctx context.Context, policyID string, regoCode string) error {
+				mockOPA.StorePolicyFunc = func(_ context.Context, _ string, _ string) error {
 					// Don't store in opaStorage to simulate missing Rego
 					return nil
 				}
@@ -1239,12 +1239,12 @@ var _ = Describe("PolicyService", func() {
 					RegoCode:    strPtr("package test"),
 				}
 				_, err := policyService.CreatePolicy(ctx, policy, &clientID)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Try to get the policy (Rego not in OPA)
 				_, err = policyService.GetPolicy(ctx, clientID)
 
-				Expect(err).NotTo(BeNil())
+				Expect(err).To(HaveOccurred())
 				serviceErr, ok := err.(*service.ServiceError)
 				Expect(ok).To(BeTrue())
 				Expect(serviceErr.Type).To(Equal(service.ErrorTypeInternal))
@@ -1259,16 +1259,16 @@ var _ = Describe("PolicyService", func() {
 					RegoCode:    strPtr("package test"),
 				}
 				_, err := policyService.CreatePolicy(ctx, policy, &clientID)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Override GetPolicy to simulate OPA unavailable
-				mockOPA.GetPolicyFunc = func(ctx context.Context, policyID string) (string, error) {
+				mockOPA.GetPolicyFunc = func(_ context.Context, _ string) (string, error) {
 					return "", opa.ErrOPAUnavailable
 				}
 
 				_, err = policyService.GetPolicy(ctx, clientID)
 
-				Expect(err).NotTo(BeNil())
+				Expect(err).To(HaveOccurred())
 				serviceErr, ok := err.(*service.ServiceError)
 				Expect(ok).To(BeTrue())
 				Expect(serviceErr.Type).To(Equal(service.ErrorTypeInternal))
@@ -1285,7 +1285,7 @@ var _ = Describe("PolicyService", func() {
 					RegoCode:    strPtr("package test\ndefault allow = false"),
 				}
 				_, err := policyService.CreatePolicy(ctx, policy, &clientID)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Update Rego code
 				newRego := "package test\ndefault allow = true"
@@ -1294,7 +1294,7 @@ var _ = Describe("PolicyService", func() {
 				}
 				updated, err := policyService.UpdatePolicy(ctx, clientID, patch)
 
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(updated).NotTo(BeNil())
 
 				// Verify new Rego is in OPA storage
@@ -1302,7 +1302,7 @@ var _ = Describe("PolicyService", func() {
 
 				// Verify GET returns new Rego
 				retrieved, err := policyService.GetPolicy(ctx, clientID)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(*retrieved.RegoCode).To(Equal(newRego))
 			})
 
@@ -1315,10 +1315,10 @@ var _ = Describe("PolicyService", func() {
 					RegoCode:    strPtr("package test"),
 				}
 				_, err := policyService.CreatePolicy(ctx, policy, &clientID)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Override StorePolicy to return invalid Rego error
-				mockOPA.StorePolicyFunc = func(ctx context.Context, policyID string, regoCode string) error {
+				mockOPA.StorePolicyFunc = func(_ context.Context, policyID string, regoCode string) error {
 					if regoCode == "invalid" {
 						return opa.ErrInvalidRego
 					}
@@ -1333,7 +1333,7 @@ var _ = Describe("PolicyService", func() {
 				}
 				_, err = policyService.UpdatePolicy(ctx, clientID, patch)
 
-				Expect(err).NotTo(BeNil())
+				Expect(err).To(HaveOccurred())
 				serviceErr, ok := err.(*service.ServiceError)
 				Expect(ok).To(BeTrue())
 				Expect(serviceErr.Type).To(Equal(service.ErrorTypeInvalidArgument))
@@ -1353,7 +1353,7 @@ var _ = Describe("PolicyService", func() {
 					Priority:    &priority1,
 				}
 				_, err := policyService.CreatePolicy(ctx, policy1, &clientID1)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Create second policy with different priority
 				clientID2 := "update-rollback-test-2"
@@ -1365,7 +1365,7 @@ var _ = Describe("PolicyService", func() {
 					Priority:    &priority2,
 				}
 				_, err = policyService.CreatePolicy(ctx, policy2, &clientID2)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				oldRego := opaStorage[clientID2]
 
@@ -1378,7 +1378,7 @@ var _ = Describe("PolicyService", func() {
 				}
 				_, err = policyService.UpdatePolicy(ctx, clientID2, patch)
 
-				Expect(err).NotTo(BeNil())
+				Expect(err).To(HaveOccurred())
 				// Verify old Rego is restored in OPA
 				Expect(opaStorage[clientID2]).To(Equal(oldRego))
 			})
@@ -1392,10 +1392,10 @@ var _ = Describe("PolicyService", func() {
 					RegoCode:    strPtr("package test"),
 				}
 				_, err := policyService.CreatePolicy(ctx, policy, &clientID)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				opaCalled := false
-				mockOPA.StorePolicyFunc = func(ctx context.Context, policyID string, regoCode string) error {
+				mockOPA.StorePolicyFunc = func(_ context.Context, policyID string, regoCode string) error {
 					opaCalled = true
 					opaStorage[policyID] = regoCode
 					return nil
@@ -1407,7 +1407,7 @@ var _ = Describe("PolicyService", func() {
 				}
 				updated, err := policyService.UpdatePolicy(ctx, clientID, patch)
 
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(updated).NotTo(BeNil())
 				Expect(*updated.DisplayName).To(Equal("Updated Name"))
 				Expect(opaCalled).To(BeFalse(), "OPA should not be called when RegoCode not in patch")
@@ -1424,7 +1424,7 @@ var _ = Describe("PolicyService", func() {
 					RegoCode:    strPtr("package test"),
 				}
 				_, err := policyService.CreatePolicy(ctx, policy, &clientID)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Verify policy exists in OPA
 				Expect(opaStorage).To(HaveKey(clientID))
@@ -1432,7 +1432,7 @@ var _ = Describe("PolicyService", func() {
 				// Delete policy
 				err = policyService.DeletePolicy(ctx, clientID)
 
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				// Verify deleted from OPA
 				Expect(opaStorage).NotTo(HaveKey(clientID))
 			})
@@ -1446,21 +1446,21 @@ var _ = Describe("PolicyService", func() {
 					RegoCode:    strPtr("package test"),
 				}
 				_, err := policyService.CreatePolicy(ctx, policy, &clientID)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Override DeletePolicy to return error
-				mockOPA.DeletePolicyFunc = func(ctx context.Context, policyID string) error {
+				mockOPA.DeletePolicyFunc = func(_ context.Context, _ string) error {
 					return opa.ErrOPAUnavailable
 				}
 
 				// Delete should still succeed (best effort)
 				err = policyService.DeletePolicy(ctx, clientID)
 
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Verify deleted from DB
 				_, err = policyService.GetPolicy(ctx, clientID)
-				Expect(err).NotTo(BeNil())
+				Expect(err).To(HaveOccurred())
 				serviceErr, ok := err.(*service.ServiceError)
 				Expect(ok).To(BeTrue())
 				Expect(serviceErr.Type).To(Equal(service.ErrorTypeNotFound))

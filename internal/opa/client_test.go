@@ -14,9 +14,7 @@ import (
 )
 
 var _ = Describe("OPA Client", func() {
-	var (
-		ctx context.Context
-	)
+	var ctx context.Context
 
 	BeforeEach(func() {
 		ctx = context.Background()
@@ -39,14 +37,15 @@ var _ = Describe("OPA Client", func() {
 		})
 
 		It("returns ErrInvalidRego for invalid Rego code", func() {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(http.StatusBadRequest)
 				opaErr := opa.OPAError{
 					Code:    "invalid_parameter",
 					Message: "error(s) occurred while compiling module(s)",
 					Errors:  []string{"rego_parse_error: invalid syntax"},
 				}
-				json.NewEncoder(w).Encode(opaErr)
+				err := json.NewEncoder(w).Encode(opaErr)
+				Expect(err).ToNot(HaveOccurred())
 			}))
 			defer server.Close()
 
@@ -89,7 +88,8 @@ var _ = Describe("OPA Client", func() {
 						"raw": expectedRego,
 					},
 				}
-				json.NewEncoder(w).Encode(response)
+				err := json.NewEncoder(w).Encode(response)
+				Expect(err).ToNot(HaveOccurred())
 			}))
 			defer server.Close()
 
@@ -101,11 +101,12 @@ var _ = Describe("OPA Client", func() {
 		})
 
 		It("returns ErrPolicyNotFound when policy doesn't exist", func() {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(http.StatusNotFound)
-				json.NewEncoder(w).Encode(map[string]string{
+				err := json.NewEncoder(w).Encode(map[string]string{
 					"code": "not_found",
 				})
+				Expect(err).ToNot(HaveOccurred())
 			}))
 			defer server.Close()
 
@@ -123,7 +124,7 @@ var _ = Describe("OPA Client", func() {
 		})
 
 		It("returns ErrOPAUnavailable for non-200/404 status codes", func() {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(http.StatusInternalServerError)
 			}))
 			defer server.Close()
@@ -135,9 +136,10 @@ var _ = Describe("OPA Client", func() {
 		})
 
 		It("returns ErrClientInternal when failing to parse response", func() {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(http.StatusOK)
-				w.Write([]byte("not a valid JSON"))
+				_, err := w.Write([]byte("not a valid JSON"))
+				Expect(err).ToNot(HaveOccurred())
 			}))
 			defer server.Close()
 
@@ -165,7 +167,7 @@ var _ = Describe("OPA Client", func() {
 		})
 
 		It("treats 404 as success (idempotent)", func() {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(http.StatusNotFound)
 			}))
 			defer server.Close()
@@ -184,7 +186,7 @@ var _ = Describe("OPA Client", func() {
 		})
 
 		It("returns ErrOPAUnavailable for non-200/404 status codes", func() {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(http.StatusInternalServerError)
 			}))
 			defer server.Close()
@@ -215,7 +217,8 @@ var _ = Describe("OPA Client", func() {
 						"selected_provider": "aws",
 					},
 				}
-				json.NewEncoder(w).Encode(response)
+				err := json.NewEncoder(w).Encode(response)
+				Expect(err).ToNot(HaveOccurred())
 			}))
 			defer server.Close()
 
@@ -241,7 +244,8 @@ var _ = Describe("OPA Client", func() {
 				Expect(r.Method).To(Equal(http.MethodPost))
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusOK)
-				json.NewEncoder(w).Encode(map[string]any{})
+				err := json.NewEncoder(w).Encode(map[string]any{})
+				Expect(err).ToNot(HaveOccurred())
 			}))
 			defer server.Close()
 
@@ -258,7 +262,8 @@ var _ = Describe("OPA Client", func() {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusOK)
 				// OPA returned a string instead of an object; client must reject it
-				json.NewEncoder(w).Encode(map[string]any{"result": "not an object"})
+				err := json.NewEncoder(w).Encode(map[string]any{"result": "not an object"})
+				Expect(err).ToNot(HaveOccurred())
 			}))
 			defer server.Close()
 
@@ -271,7 +276,7 @@ var _ = Describe("OPA Client", func() {
 		})
 
 		It("returns ErrPolicyNotFound when policy doesn't exist", func() {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(http.StatusNotFound)
 			}))
 			defer server.Close()
@@ -290,7 +295,7 @@ var _ = Describe("OPA Client", func() {
 		})
 
 		It("returns ErrOPAUnavailable for non-200/404 status codes", func() {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(http.StatusInternalServerError)
 			}))
 			defer server.Close()

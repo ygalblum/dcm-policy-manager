@@ -8,7 +8,7 @@ import (
 
 // Error handling helpers
 
-func (h *PolicyHandler) handleCreatePolicyError(err error, request server.CreatePolicyRequestObject) server.CreatePolicyResponseObject {
+func (h *PolicyHandler) handleCreatePolicyError(err error, _ server.CreatePolicyRequestObject) server.CreatePolicyResponseObject {
 	serviceErr, ok := err.(*service.ServiceError)
 	if !ok {
 		return server.CreatePolicy500JSONResponse{
@@ -52,7 +52,7 @@ func (h *PolicyHandler) handleCreatePolicyError(err error, request server.Create
 	}
 }
 
-func (h *PolicyHandler) handleGetPolicyError(err error, request server.GetPolicyRequestObject) server.GetPolicyResponseObject {
+func (h *PolicyHandler) handleGetPolicyError(err error, _ server.GetPolicyRequestObject) server.GetPolicyResponseObject {
 	serviceErr, ok := err.(*service.ServiceError)
 	if !ok {
 		return server.GetPolicy500JSONResponse{
@@ -87,7 +87,7 @@ func (h *PolicyHandler) handleGetPolicyError(err error, request server.GetPolicy
 	}
 }
 
-func (h *PolicyHandler) handleListPoliciesError(err error, request server.ListPoliciesRequestObject) server.ListPoliciesResponseObject {
+func (h *PolicyHandler) handleListPoliciesError(err error, _ server.ListPoliciesRequestObject) server.ListPoliciesResponseObject {
 	serviceErr, ok := err.(*service.ServiceError)
 	if !ok {
 		return server.ListPolicies500JSONResponse{
@@ -122,7 +122,7 @@ func (h *PolicyHandler) handleListPoliciesError(err error, request server.ListPo
 	}
 }
 
-func (h *PolicyHandler) handleUpdatePolicyError(err error, request server.UpdatePolicyRequestObject) server.UpdatePolicyResponseObject {
+func (h *PolicyHandler) handleUpdatePolicyError(err error, _ server.UpdatePolicyRequestObject) server.UpdatePolicyResponseObject {
 	serviceErr, ok := err.(*service.ServiceError)
 	if !ok {
 		return server.UpdatePolicy500JSONResponse{
@@ -175,7 +175,7 @@ func (h *PolicyHandler) handleUpdatePolicyError(err error, request server.Update
 	}
 }
 
-func (h *PolicyHandler) handleDeletePolicyError(err error, request server.DeletePolicyRequestObject) server.DeletePolicyResponseObject {
+func (h *PolicyHandler) handleDeletePolicyError(err error, _ server.DeletePolicyRequestObject) server.DeletePolicyResponseObject {
 	serviceErr, ok := err.(*service.ServiceError)
 	if !ok {
 		return server.DeletePolicy500JSONResponse{

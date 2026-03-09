@@ -1,3 +1,4 @@
+// Package service implements the business logic for policy operations.
 package service
 
 import (
@@ -20,11 +21,9 @@ const (
 	MaxPriority = 1000
 )
 
-var (
-	// AEP-122 compliant ID format: 1-63 chars, start with lowercase letter,
-	// contain only lowercase letters, numbers, and hyphens, end with letter or number
-	idPattern = regexp.MustCompile(`^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`)
-)
+// AEP-122 compliant ID format: 1-63 chars, start with lowercase letter,
+// contain only lowercase letters, numbers, and hyphens, end with letter or number
+var idPattern = regexp.MustCompile(`^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`)
 
 // PolicyService defines the interface for policy business logic operations.
 type PolicyService interface {

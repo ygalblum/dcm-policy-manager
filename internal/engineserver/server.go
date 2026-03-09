@@ -1,3 +1,4 @@
+// Package engineserver provides the HTTP server for the policy evaluation engine API.
 package engineserver
 
 import (

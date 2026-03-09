@@ -91,7 +91,7 @@ var _ = Describe("PolicyHandler", func() {
 			priority := int32(500)
 
 			regoCode := ""
-			mockService.CreatePolicyFn = func(ctx context.Context, policy v1alpha1.Policy, clientID *string) (*v1alpha1.Policy, error) {
+			mockService.CreatePolicyFn = func(_ context.Context, policy v1alpha1.Policy, _ *string) (*v1alpha1.Policy, error) {
 				return &v1alpha1.Policy{
 					Id:          &policyID,
 					Path:        &path,
@@ -139,7 +139,7 @@ var _ = Describe("PolicyHandler", func() {
 		It("should return 409 when policy already exists", func() {
 			ctx := context.Background()
 
-			mockService.CreatePolicyFn = func(ctx context.Context, policy v1alpha1.Policy, clientID *string) (*v1alpha1.Policy, error) {
+			mockService.CreatePolicyFn = func(_ context.Context, _ v1alpha1.Policy, _ *string) (*v1alpha1.Policy, error) {
 				return nil, service.NewAlreadyExistsError("Policy already exists", "Duplicate ID")
 			}
 
@@ -171,7 +171,7 @@ var _ = Describe("PolicyHandler", func() {
 			displayName := "Test Policy"
 			regoCodeEmpty := ""
 			pt := v1alpha1.GLOBAL
-			mockService.GetPolicyFn = func(ctx context.Context, id string) (*v1alpha1.Policy, error) {
+			mockService.GetPolicyFn = func(_ context.Context, _ string) (*v1alpha1.Policy, error) {
 				return &v1alpha1.Policy{
 					Id:          &policyID,
 					Path:        &path,
@@ -194,7 +194,7 @@ var _ = Describe("PolicyHandler", func() {
 		It("should return 404 when policy not found", func() {
 			ctx := context.Background()
 
-			mockService.GetPolicyFn = func(ctx context.Context, id string) (*v1alpha1.Policy, error) {
+			mockService.GetPolicyFn = func(_ context.Context, _ string) (*v1alpha1.Policy, error) {
 				return nil, service.NewNotFoundError("Policy not found", "Not found")
 			}
 
@@ -221,7 +221,7 @@ var _ = Describe("PolicyHandler", func() {
 			regoCodeEmpty := ""
 			pt1 := v1alpha1.GLOBAL
 			pt2 := v1alpha1.USER
-			mockService.ListPoliciesFn = func(ctx context.Context, filter *string, orderBy *string, pageToken *string, pageSize *int32) (*v1alpha1.PolicyList, error) {
+			mockService.ListPoliciesFn = func(_ context.Context, _ *string, _ *string, _ *string, _ *int32) (*v1alpha1.PolicyList, error) {
 				return &v1alpha1.PolicyList{
 					Policies: []v1alpha1.Policy{
 						{
@@ -260,7 +260,7 @@ var _ = Describe("PolicyHandler", func() {
 			filter := "policy_type='GLOBAL'"
 			var receivedFilter *string
 
-			mockService.ListPoliciesFn = func(ctx context.Context, filter *string, orderBy *string, pageToken *string, pageSize *int32) (*v1alpha1.PolicyList, error) {
+			mockService.ListPoliciesFn = func(_ context.Context, filter *string, _ *string, _ *string, _ *int32) (*v1alpha1.PolicyList, error) {
 				receivedFilter = filter
 				return &v1alpha1.PolicyList{
 					Policies: []v1alpha1.Policy{},
@@ -285,7 +285,7 @@ var _ = Describe("PolicyHandler", func() {
 			var receivedPageToken *string
 			var receivedPageSize *int32
 
-			mockService.ListPoliciesFn = func(ctx context.Context, filter *string, orderBy *string, pageToken *string, pageSize *int32) (*v1alpha1.PolicyList, error) {
+			mockService.ListPoliciesFn = func(_ context.Context, _ *string, _ *string, pageToken *string, pageSize *int32) (*v1alpha1.PolicyList, error) {
 				receivedPageToken = pageToken
 				receivedPageSize = pageSize
 				return &v1alpha1.PolicyList{
@@ -310,7 +310,7 @@ var _ = Describe("PolicyHandler", func() {
 		It("should return 400 for invalid filter", func() {
 			ctx := context.Background()
 
-			mockService.ListPoliciesFn = func(ctx context.Context, filter *string, orderBy *string, pageToken *string, pageSize *int32) (*v1alpha1.PolicyList, error) {
+			mockService.ListPoliciesFn = func(_ context.Context, _ *string, _ *string, _ *string, _ *int32) (*v1alpha1.PolicyList, error) {
 				return nil, service.NewInvalidArgumentError("Invalid filter", "Bad filter expression")
 			}
 
@@ -336,7 +336,7 @@ var _ = Describe("PolicyHandler", func() {
 			priority := int32(200)
 			regoCodeEmpty := ""
 			pt := v1alpha1.GLOBAL
-			mockService.UpdatePolicyFn = func(ctx context.Context, id string, patch *v1alpha1.Policy) (*v1alpha1.Policy, error) {
+			mockService.UpdatePolicyFn = func(_ context.Context, _ string, patch *v1alpha1.Policy) (*v1alpha1.Policy, error) {
 				displayName := "Updated Policy"
 				if patch != nil && patch.DisplayName != nil {
 					displayName = *patch.DisplayName
@@ -388,7 +388,7 @@ var _ = Describe("PolicyHandler", func() {
 		It("should return 404 when policy not found", func() {
 			ctx := context.Background()
 
-			mockService.UpdatePolicyFn = func(ctx context.Context, id string, patch *v1alpha1.Policy) (*v1alpha1.Policy, error) {
+			mockService.UpdatePolicyFn = func(_ context.Context, _ string, _ *v1alpha1.Policy) (*v1alpha1.Policy, error) {
 				return nil, service.NewNotFoundError("Policy not found", "Not found")
 			}
 
@@ -414,7 +414,7 @@ var _ = Describe("PolicyHandler", func() {
 		It("should return 204 on successful deletion", func() {
 			ctx := context.Background()
 
-			mockService.DeletePolicyFn = func(ctx context.Context, id string) error {
+			mockService.DeletePolicyFn = func(_ context.Context, _ string) error {
 				return nil
 			}
 
@@ -430,7 +430,7 @@ var _ = Describe("PolicyHandler", func() {
 		It("should return 404 when policy not found", func() {
 			ctx := context.Background()
 
-			mockService.DeletePolicyFn = func(ctx context.Context, id string) error {
+			mockService.DeletePolicyFn = func(_ context.Context, _ string) error {
 				return service.NewNotFoundError("Policy not found", "Not found")
 			}
 

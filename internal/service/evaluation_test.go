@@ -19,15 +19,15 @@ type mockPolicyStore struct {
 	err      error
 }
 
-func (m *mockPolicyStore) Create(ctx context.Context, policy model.Policy) (*model.Policy, error) {
+func (m *mockPolicyStore) Create(_ context.Context, _ model.Policy) (*model.Policy, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (m *mockPolicyStore) Get(ctx context.Context, id string) (*model.Policy, error) {
+func (m *mockPolicyStore) Get(_ context.Context, _ string) (*model.Policy, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (m *mockPolicyStore) List(ctx context.Context, opts *store.PolicyListOptions) (*store.PolicyListResult, error) {
+func (m *mockPolicyStore) List(_ context.Context, _ *store.PolicyListOptions) (*store.PolicyListResult, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
@@ -36,11 +36,11 @@ func (m *mockPolicyStore) List(ctx context.Context, opts *store.PolicyListOption
 	}, nil
 }
 
-func (m *mockPolicyStore) Update(ctx context.Context, policy model.Policy) (*model.Policy, error) {
+func (m *mockPolicyStore) Update(_ context.Context, _ model.Policy) (*model.Policy, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (m *mockPolicyStore) Delete(ctx context.Context, id string) error {
+func (m *mockPolicyStore) Delete(_ context.Context, _ string) error {
 	return errors.New("not implemented")
 }
 
@@ -49,19 +49,19 @@ type mockOPAClient struct {
 	err         error
 }
 
-func (m *mockOPAClient) StorePolicy(ctx context.Context, policyID string, regoCode string) error {
+func (m *mockOPAClient) StorePolicy(_ context.Context, _ string, _ string) error {
 	return errors.New("not implemented")
 }
 
-func (m *mockOPAClient) GetPolicy(ctx context.Context, policyID string) (string, error) {
+func (m *mockOPAClient) GetPolicy(_ context.Context, _ string) (string, error) {
 	return "", errors.New("not implemented")
 }
 
-func (m *mockOPAClient) DeletePolicy(ctx context.Context, policyID string) error {
+func (m *mockOPAClient) DeletePolicy(_ context.Context, _ string) error {
 	return errors.New("not implemented")
 }
 
-func (m *mockOPAClient) EvaluatePolicy(ctx context.Context, packageName string, input map[string]any) (*opa.EvaluationResult, error) {
+func (m *mockOPAClient) EvaluatePolicy(_ context.Context, packageName string, _ map[string]any) (*opa.EvaluationResult, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
@@ -667,19 +667,19 @@ type mockOPAClientWithCapture struct {
 	captureFunc func(input map[string]any)
 }
 
-func (m *mockOPAClientWithCapture) StorePolicy(ctx context.Context, policyID string, regoCode string) error {
+func (m *mockOPAClientWithCapture) StorePolicy(_ context.Context, _ string, _ string) error {
 	return errors.New("not implemented")
 }
 
-func (m *mockOPAClientWithCapture) GetPolicy(ctx context.Context, policyID string) (string, error) {
+func (m *mockOPAClientWithCapture) GetPolicy(_ context.Context, _ string) (string, error) {
 	return "", errors.New("not implemented")
 }
 
-func (m *mockOPAClientWithCapture) DeletePolicy(ctx context.Context, policyID string) error {
+func (m *mockOPAClientWithCapture) DeletePolicy(_ context.Context, _ string) error {
 	return errors.New("not implemented")
 }
 
-func (m *mockOPAClientWithCapture) EvaluatePolicy(ctx context.Context, packageName string, input map[string]any) (*opa.EvaluationResult, error) {
+func (m *mockOPAClientWithCapture) EvaluatePolicy(_ context.Context, packageName string, input map[string]any) (*opa.EvaluationResult, error) {
 	if m.captureFunc != nil {
 		m.captureFunc(input)
 	}

@@ -1,3 +1,4 @@
+// Package model defines the database models for the store layer.
 package model
 
 import (

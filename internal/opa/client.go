@@ -1,3 +1,4 @@
+// Package opa provides an HTTP client for managing and evaluating policies in Open Policy Agent.
 package opa
 
 import (
@@ -68,7 +69,7 @@ func (c *HTTPClient) StorePolicy(ctx context.Context, policyID string, regoCode 
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrOPAUnavailable, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	return handleStorePolicyResponse(resp)
 }
@@ -106,7 +107,7 @@ func (c *HTTPClient) GetPolicy(ctx context.Context, policyID string) (string, er
 	if err != nil {
 		return "", fmt.Errorf("%w: %v", ErrOPAUnavailable, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return "", ErrPolicyNotFound
@@ -149,7 +150,7 @@ func (c *HTTPClient) DeletePolicy(ctx context.Context, policyID string) error {
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrOPAUnavailable, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	return handleDeletePolicyResponse(resp)
 }
@@ -191,7 +192,7 @@ func (c *HTTPClient) EvaluatePolicy(ctx context.Context, packageName string, inp
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrOPAUnavailable, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, ErrPolicyNotFound

@@ -1,3 +1,4 @@
+// Package rego provides utilities for parsing Rego policy source code.
 package rego
 
 import (

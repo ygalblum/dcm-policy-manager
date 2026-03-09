@@ -1,3 +1,4 @@
+// Package store provides database initialization and storage interfaces for policies.
 package store
 
 import (

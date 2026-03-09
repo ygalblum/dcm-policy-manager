@@ -1,3 +1,4 @@
+// Package v1alpha1 handles v1alpha1 API requests for policy CRUD operations.
 package v1alpha1
 
 import (
@@ -21,8 +22,8 @@ func NewPolicyHandler(service service.PolicyService) *PolicyHandler {
 	}
 }
 
-// (GET /health)
-func (h *PolicyHandler) GetHealth(ctx context.Context, request server.GetHealthRequestObject) (server.GetHealthResponseObject, error) {
+// GetHealth handles health check requests.
+func (h *PolicyHandler) GetHealth(_ context.Context, _ server.GetHealthRequestObject) (server.GetHealthResponseObject, error) {
 	status := "ok"
 	path := "health"
 	return server.GetHealth200JSONResponse{
@@ -31,7 +32,7 @@ func (h *PolicyHandler) GetHealth(ctx context.Context, request server.GetHealthR
 	}, nil
 }
 
-// (POST /policies)
+// CreatePolicy handles creating a new policy resource.
 func (h *PolicyHandler) CreatePolicy(ctx context.Context, request server.CreatePolicyRequestObject) (server.CreatePolicyResponseObject, error) {
 	if request.Body == nil {
 		return server.CreatePolicy400JSONResponse{
@@ -59,7 +60,7 @@ func (h *PolicyHandler) CreatePolicy(ctx context.Context, request server.CreateP
 	}, nil
 }
 
-// (GET /policies/{policyId})
+// GetPolicy handles retrieving a single policy by ID.
 func (h *PolicyHandler) GetPolicy(ctx context.Context, request server.GetPolicyRequestObject) (server.GetPolicyResponseObject, error) {
 	// Call service to get policy
 	policy, err := h.service.GetPolicy(ctx, request.PolicyId)
@@ -70,7 +71,7 @@ func (h *PolicyHandler) GetPolicy(ctx context.Context, request server.GetPolicyR
 	return server.GetPolicy200JSONResponse(policyV1Alpha1ToServer(*policy)), nil
 }
 
-// (GET /policies)
+// ListPolicies handles listing policies with optional filtering and pagination.
 func (h *PolicyHandler) ListPolicies(ctx context.Context, request server.ListPoliciesRequestObject) (server.ListPoliciesResponseObject, error) {
 	// Extract parameters with defaults handled by service
 	result, err := h.service.ListPolicies(
@@ -87,7 +88,7 @@ func (h *PolicyHandler) ListPolicies(ctx context.Context, request server.ListPol
 	return server.ListPolicies200JSONResponse(listResponseV1Alpha1ToServer(*result)), nil
 }
 
-// (PATCH /policies/{policyId})
+// UpdatePolicy handles updating an existing policy resource.
 func (h *PolicyHandler) UpdatePolicy(ctx context.Context, request server.UpdatePolicyRequestObject) (server.UpdatePolicyResponseObject, error) {
 	if request.Body == nil {
 		return server.UpdatePolicy400JSONResponse{
@@ -112,7 +113,7 @@ func (h *PolicyHandler) UpdatePolicy(ctx context.Context, request server.UpdateP
 	return server.UpdatePolicy200JSONResponse(policyV1Alpha1ToServer(*updated)), nil
 }
 
-// (DELETE /policies/{policyId})
+// DeletePolicy handles deleting a policy by ID.
 func (h *PolicyHandler) DeletePolicy(ctx context.Context, request server.DeletePolicyRequestObject) (server.DeletePolicyResponseObject, error) {
 	// Call service to delete policy
 	err := h.service.DeletePolicy(ctx, request.PolicyId)

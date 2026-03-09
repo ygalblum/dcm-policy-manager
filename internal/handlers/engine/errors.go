@@ -26,10 +26,10 @@ func (h *Handler) handleError(err error) engineserver.EvaluateRequestResponseObj
 func (h *Handler) badRequest(message string) engineserver.EvaluateRequestResponseObject {
 	return engineserver.EvaluateRequest400JSONResponse{
 		BadRequestJSONResponse: engineserver.BadRequestJSONResponse{
-			Type:     "about:blank",
-			Status:   400,
-			Title:    "Bad Request",
-			Detail:   &message,
+			Type:   "about:blank",
+			Status: 400,
+			Title:  "Bad Request",
+			Detail: &message,
 		},
 	}
 }
@@ -38,10 +38,10 @@ func (h *Handler) badRequest(message string) engineserver.EvaluateRequestRespons
 func (h *Handler) rejected(title, detail string) engineserver.EvaluateRequestResponseObject {
 	return engineserver.EvaluateRequest406JSONResponse{
 		RejectedJSONResponse: engineserver.RejectedJSONResponse{
-			Type:     "about:blank",
-			Status:   406,
-			Title:    title,
-			Detail:   &detail,
+			Type:   "about:blank",
+			Status: 406,
+			Title:  title,
+			Detail: &detail,
 		},
 	}
 }
@@ -50,10 +50,10 @@ func (h *Handler) rejected(title, detail string) engineserver.EvaluateRequestRes
 func (h *Handler) conflict(title, detail string) engineserver.EvaluateRequestResponseObject {
 	return engineserver.EvaluateRequest409JSONResponse{
 		PolicyConflictJSONResponse: engineserver.PolicyConflictJSONResponse{
-			Type:     "about:blank",
-			Status:   409,
-			Title:    title,
-			Detail:   &detail,
+			Type:   "about:blank",
+			Status: 409,
+			Title:  title,
+			Detail: &detail,
 		},
 	}
 }
@@ -62,10 +62,10 @@ func (h *Handler) conflict(title, detail string) engineserver.EvaluateRequestRes
 func (h *Handler) internalError(title, detail string) engineserver.EvaluateRequestResponseObject {
 	return engineserver.EvaluateRequest500JSONResponse{
 		InternalServerErrorJSONResponse: engineserver.InternalServerErrorJSONResponse{
-			Type:     "about:blank",
-			Status:   500,
-			Title:    title,
-			Detail:   &detail,
+			Type:   "about:blank",
+			Status: 500,
+			Title:  title,
+			Detail: &detail,
 		},
 	}
 }

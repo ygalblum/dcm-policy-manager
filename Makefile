@@ -19,6 +19,9 @@ fmt:
 vet:
 	go vet ./...
 
+lint:
+	golangci-lint run ./...
+
 test:
 	go run github.com/onsi/ginkgo/v2/ginkgo -r --randomize-all --fail-on-pending --skip-package=e2e
 
@@ -100,4 +103,4 @@ e2e-down:
 
 test-e2e-full: e2e-up test-e2e e2e-down
 
-.PHONY: build run clean fmt vet test tidy generate-types generate-spec generate-server generate-client generate-api generate-crud-api generate-engine-types generate-engine-spec generate-engine-server generate-engine-client generate-engine-api check-generate-api check-aep test-e2e e2e-up e2e-down test-e2e-full
+.PHONY: build run clean fmt vet lint test tidy generate-types generate-spec generate-server generate-client generate-api generate-crud-api generate-engine-types generate-engine-spec generate-engine-server generate-engine-client generate-engine-api check-generate-api check-aep test-e2e e2e-up e2e-down test-e2e-full

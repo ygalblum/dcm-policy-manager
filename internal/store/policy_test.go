@@ -33,7 +33,7 @@ var _ = Describe("Policy Store", func() {
 
 	AfterEach(func() {
 		sqlDB, _ := db.DB()
-		sqlDB.Close()
+		_ = sqlDB.Close()
 	})
 
 	Describe("Create", func() {
@@ -89,7 +89,8 @@ var _ = Describe("Policy Store", func() {
 	Describe("Get", func() {
 		It("retrieves by ID", func() {
 			p := newPolicy("get-test")
-			policyStore.Create(ctx, p)
+			_, err := policyStore.Create(ctx, p)
+			Expect(err).NotTo(HaveOccurred())
 
 			found, err := policyStore.Get(ctx, p.ID)
 
@@ -106,8 +107,10 @@ var _ = Describe("Policy Store", func() {
 
 	Describe("List", func() {
 		It("returns all policies when filter is nil", func() {
-			policyStore.Create(ctx, newPolicy("p1"))
-			policyStore.Create(ctx, newPolicy("p2"))
+			_, err := policyStore.Create(ctx, newPolicy("p1"))
+			Expect(err).NotTo(HaveOccurred())
+			_, err = policyStore.Create(ctx, newPolicy("p2"))
+			Expect(err).NotTo(HaveOccurred())
 
 			result, err := policyStore.List(ctx, nil)
 
@@ -119,11 +122,13 @@ var _ = Describe("Policy Store", func() {
 		It("filters by policy type", func() {
 			p1 := newPolicy("global-policy")
 			p1.PolicyType = "GLOBAL"
-			policyStore.Create(ctx, p1)
+			_, err := policyStore.Create(ctx, p1)
+			Expect(err).NotTo(HaveOccurred())
 
 			p2 := newPolicy("user-policy")
 			p2.PolicyType = "USER"
-			policyStore.Create(ctx, p2)
+			_, err = policyStore.Create(ctx, p2)
+			Expect(err).NotTo(HaveOccurred())
 
 			globalType := "GLOBAL"
 			opts := &store.PolicyListOptions{
@@ -139,11 +144,13 @@ var _ = Describe("Policy Store", func() {
 		It("filters by enabled status", func() {
 			p1 := newPolicy("enabled-policy")
 			p1.Enabled = true
-			policyStore.Create(ctx, p1)
+			_, err := policyStore.Create(ctx, p1)
+			Expect(err).NotTo(HaveOccurred())
 
 			p2 := newPolicy("disabled-policy")
 			p2.Enabled = false
-			policyStore.Create(ctx, p2)
+			_, err = policyStore.Create(ctx, p2)
+			Expect(err).NotTo(HaveOccurred())
 
 			enabled := true
 			opts := &store.PolicyListOptions{
@@ -160,17 +167,20 @@ var _ = Describe("Policy Store", func() {
 			p1 := newPolicy("global-enabled")
 			p1.PolicyType = "GLOBAL"
 			p1.Enabled = true
-			policyStore.Create(ctx, p1)
+			_, err := policyStore.Create(ctx, p1)
+			Expect(err).NotTo(HaveOccurred())
 
 			p2 := newPolicy("global-disabled")
 			p2.PolicyType = "GLOBAL"
 			p2.Enabled = false
-			policyStore.Create(ctx, p2)
+			_, err = policyStore.Create(ctx, p2)
+			Expect(err).NotTo(HaveOccurred())
 
 			p3 := newPolicy("user-enabled")
 			p3.PolicyType = "USER"
 			p3.Enabled = true
-			policyStore.Create(ctx, p3)
+			_, err = policyStore.Create(ctx, p3)
+			Expect(err).NotTo(HaveOccurred())
 
 			globalType := "GLOBAL"
 			enabled := true
@@ -190,15 +200,18 @@ var _ = Describe("Policy Store", func() {
 		It("orders policies by priority ascending by default", func() {
 			p1 := newPolicy("low-priority")
 			p1.Priority = 800
-			policyStore.Create(ctx, p1)
+			_, err := policyStore.Create(ctx, p1)
+			Expect(err).NotTo(HaveOccurred())
 
 			p2 := newPolicy("high-priority")
 			p2.Priority = 100
-			policyStore.Create(ctx, p2)
+			_, err = policyStore.Create(ctx, p2)
+			Expect(err).NotTo(HaveOccurred())
 
 			p3 := newPolicy("medium-priority")
 			p3.Priority = 400
-			policyStore.Create(ctx, p3)
+			_, err = policyStore.Create(ctx, p3)
+			Expect(err).NotTo(HaveOccurred())
 
 			result, err := policyStore.List(ctx, nil)
 
@@ -212,11 +225,13 @@ var _ = Describe("Policy Store", func() {
 		It("applies custom ordering", func() {
 			p1 := newPolicy("alpha")
 			p1.DisplayName = "Zebra Policy"
-			policyStore.Create(ctx, p1)
+			_, err := policyStore.Create(ctx, p1)
+			Expect(err).NotTo(HaveOccurred())
 
 			p2 := newPolicy("beta")
 			p2.DisplayName = "Alpha Policy"
-			policyStore.Create(ctx, p2)
+			_, err = policyStore.Create(ctx, p2)
+			Expect(err).NotTo(HaveOccurred())
 
 			opts := &store.PolicyListOptions{
 				OrderBy: "display_name ASC",
@@ -233,7 +248,8 @@ var _ = Describe("Policy Store", func() {
 			for i := 1; i <= 5; i++ {
 				p := newPolicy("policy-" + string(rune('0'+i)))
 				p.Priority = int32(i * 100)
-				policyStore.Create(ctx, p)
+				_, err := policyStore.Create(ctx, p)
+				Expect(err).NotTo(HaveOccurred())
 			}
 
 			opts := &store.PolicyListOptions{
@@ -252,7 +268,8 @@ var _ = Describe("Policy Store", func() {
 			for i := 1; i <= 5; i++ {
 				p := newPolicy("policy-" + string(rune('0'+i)))
 				p.Priority = int32(i * 100)
-				policyStore.Create(ctx, p)
+				_, err := policyStore.Create(ctx, p)
+				Expect(err).NotTo(HaveOccurred())
 			}
 
 			// First page
@@ -298,7 +315,8 @@ var _ = Describe("Policy Store", func() {
 			for i := 1; i <= 51; i++ {
 				p := newPolicy("policy-" + string(rune('0'+i)))
 				p.Priority = int32(i * 10)
-				policyStore.Create(ctx, p)
+				_, err := policyStore.Create(ctx, p)
+				Expect(err).NotTo(HaveOccurred())
 			}
 
 			result, err := policyStore.List(ctx, &store.PolicyListOptions{})
@@ -312,9 +330,10 @@ var _ = Describe("Policy Store", func() {
 	Describe("Delete", func() {
 		It("removes the policy", func() {
 			p := newPolicy("to-delete")
-			policyStore.Create(ctx, p)
+			_, err := policyStore.Create(ctx, p)
+			Expect(err).NotTo(HaveOccurred())
 
-			err := policyStore.Delete(ctx, p.ID)
+			err = policyStore.Delete(ctx, p.ID)
 
 			Expect(err).NotTo(HaveOccurred())
 		})
@@ -329,7 +348,8 @@ var _ = Describe("Policy Store", func() {
 	Describe("Update", func() {
 		It("modifies existing policy", func() {
 			p := newPolicy("to-update")
-			policyStore.Create(ctx, p)
+			_, err := policyStore.Create(ctx, p)
+			Expect(err).NotTo(HaveOccurred())
 
 			p.DisplayName = "Updated Policy Name"
 			p.Description = "Updated description"
@@ -389,11 +409,12 @@ func newPolicy(id string) model.Policy {
 	// Convert ID to a title-cased display name
 	displayName := ""
 	for i, c := range id {
-		if c == '-' {
+		switch {
+		case c == '-':
 			displayName += " "
-		} else if i == 0 || (i > 0 && id[i-1] == '-') {
+		case i == 0 || (i > 0 && id[i-1] == '-'):
 			displayName += string(c - 32) // Convert to uppercase
-		} else {
+		default:
 			displayName += string(c)
 		}
 	}
@@ -402,7 +423,7 @@ func newPolicy(id string) model.Policy {
 	// Use priority derived from id so multiple policies in the same test don't violate (priority, policy_type) uniqueness
 	priority := int32(500)
 	for _, c := range id {
-		priority += int32(c)
+		priority += c
 	}
 
 	return model.Policy{

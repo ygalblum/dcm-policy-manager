@@ -1,3 +1,4 @@
+// Package engine handles engine API requests for policy evaluation.
 package engine
 
 import (

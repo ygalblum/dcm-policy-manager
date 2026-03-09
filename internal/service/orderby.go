@@ -10,14 +10,12 @@ const (
 	DefaultOrderBy = "policy_type ASC, priority ASC, id ASC"
 )
 
-var (
-	// Supported order by fields
-	supportedOrderByFields = map[string]bool{
-		"priority":     true,
-		"display_name": true,
-		"create_time":  true,
-	}
-)
+// Supported order by fields
+var supportedOrderByFields = map[string]bool{
+	"priority":     true,
+	"display_name": true,
+	"create_time":  true,
+}
 
 // parseOrderBy parses an order_by parameter into GORM format.
 // Supports single and multiple field ordering with asc/desc directions.

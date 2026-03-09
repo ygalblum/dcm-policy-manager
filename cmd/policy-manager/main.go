@@ -54,7 +54,8 @@ func run() int {
 	// Parse OPA timeout
 	opaTimeout, err := time.ParseDuration(cfg.OPA.Timeout)
 	if err != nil {
-		log.Fatalf("Failed to parse OPA timeout: %v", err)
+		log.Printf("Failed to parse OPA timeout: %v", err)
+		return 1
 	}
 
 	// Initialize OPA client
@@ -73,7 +74,7 @@ func run() int {
 		log.Printf("Failed to create public API listener: %v", err)
 		return 1
 	}
-	defer publicListener.Close()
+	defer func() { _ = publicListener.Close() }()
 
 	// Create public API server
 	publicSrv := apiserver.New(cfg, publicListener, policyHandler)
@@ -87,7 +88,7 @@ func run() int {
 		log.Printf("Failed to create engine API listener: %v", err)
 		return 1
 	}
-	defer engineListener.Close()
+	defer func() { _ = engineListener.Close() }()
 
 	// Create private engine API server
 	engineSrv := engineserver.New(cfg, engineListener, engineHandler)
