@@ -10,6 +10,10 @@ formatters:
     generated: disable
 
 linters:
+  exclusions:
+    paths:
+      - api/v1alpha1
+      - pkg/client
   enable:
     - asasalint
     - asciicheck
@@ -68,6 +72,3 @@ linters:
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
-  exclude-dirs:
-  - api/v1alpha1
-  - pkg/client
