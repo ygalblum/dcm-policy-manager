@@ -5,7 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"time"
@@ -13,6 +13,7 @@ import (
 	engineserverapi "github.com/dcm-project/policy-manager/api/v1alpha1/engine"
 	engineserver "github.com/dcm-project/policy-manager/internal/api/engine"
 	"github.com/dcm-project/policy-manager/internal/config"
+	"github.com/dcm-project/policy-manager/internal/logging"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
@@ -38,6 +39,8 @@ func New(cfg *config.Config, listener net.Listener, handler engineserver.StrictS
 // Run starts the HTTP server and blocks until shutdown
 func (s *Server) Run(ctx context.Context) error {
 	router := chi.NewRouter()
+	router.Use(middleware.RequestID)
+	router.Use(logging.RequestLogger)
 	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
 
@@ -64,15 +67,17 @@ func (s *Server) Run(ctx context.Context) error {
 		ctxTimeout, cancel := context.WithTimeout(context.Background(), gracefulShutdownTimeout)
 		defer cancel()
 		srv.SetKeepAlivesEnabled(false)
-		log.Println("Shutting down engine server...")
-		_ = srv.Shutdown(ctxTimeout)
+		slog.Info("Shutting down engine API server")
+		if err := srv.Shutdown(ctxTimeout); err != nil {
+			slog.Error("Error during engine API server shutdown", "error", err)
+		}
 	}()
 
-	log.Printf("Starting engine server on %s", s.listener.Addr())
+	slog.Info("Engine API server started", "address", s.listener.Addr().String())
 	if err := srv.Serve(s.listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return fmt.Errorf("failed to serve engine API server: %w", err)
 	}
 
-	log.Println("Engine server stopped successfully")
+	slog.Info("Engine API server stopped")
 	return nil
 }

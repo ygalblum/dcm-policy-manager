@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/brunoga/deep/v4"
+	"github.com/dcm-project/policy-manager/internal/logging"
 	"github.com/dcm-project/policy-manager/internal/opa"
 	"github.com/dcm-project/policy-manager/internal/store"
 	"github.com/dcm-project/policy-manager/internal/store/model"
@@ -53,6 +54,9 @@ func NewEvaluationService(policyStore store.Policy, opaClient opa.Client) Evalua
 
 // EvaluateRequest evaluates a service instance request against all applicable policies
 func (s *evaluationService) EvaluateRequest(ctx context.Context, req *EvaluationRequest) (*EvaluationResponse, error) {
+	log := logging.FromContext(ctx)
+	log.Debug("Starting policy evaluation", "label_count", len(req.RequestLabels))
+
 	// Initialize the current service instance spec (we'll modify this as we evaluate policies)
 	currentSpec, err := deep.Copy(req.ServiceInstance)
 	if err != nil {
@@ -67,6 +71,8 @@ func (s *evaluationService) EvaluateRequest(ctx context.Context, req *Evaluation
 
 	// Paginate over all enabled policies, ordered by policy_type ASC, priority ASC
 	var pageToken *string
+	policiesEvaluated := 0
+	policiesSkipped := 0
 	for {
 		policyListResult, err := s.policyStore.List(ctx, &store.PolicyListOptions{
 			Filter: &store.PolicyFilter{
@@ -76,6 +82,7 @@ func (s *evaluationService) EvaluateRequest(ctx context.Context, req *Evaluation
 			PageToken: pageToken,
 		})
 		if err != nil {
+			log.Error("Failed to retrieve policies for evaluation", "error", err)
 			return nil, NewInternalError("Failed to retrieve policies", err.Error(), err)
 		}
 
@@ -83,13 +90,18 @@ func (s *evaluationService) EvaluateRequest(ctx context.Context, req *Evaluation
 		for _, policy := range policyListResult.Policies {
 			// Filter by label selector
 			if !MatchesLabelSelector(policy.LabelSelector, req.RequestLabels) {
+				policiesSkipped++
 				continue
 			}
 
+			log.Debug("Evaluating policy", "policy_id", policy.ID, "policy_type", policy.PolicyType, "priority", policy.Priority)
+
 			currentSpec, selectedProvider, err = s.evaluatePolicy(ctx, &policy, currentSpec, selectedProvider, constraintCtx)
 			if err != nil {
+				log.Warn("Policy evaluation failed", "policy_id", policy.ID, "error", err)
 				return nil, err
 			}
+			policiesEvaluated++
 		}
 
 		if policyListResult.NextPageToken == "" {
@@ -103,6 +115,13 @@ func (s *evaluationService) EvaluateRequest(ctx context.Context, req *Evaluation
 	if !deep.Equal(req.ServiceInstance, currentSpec) {
 		status = EvaluationStatusModified
 	}
+
+	log.Info("Policy evaluation completed",
+		"status", status,
+		"policies_evaluated", policiesEvaluated,
+		"policies_skipped", policiesSkipped,
+		"selected_provider", selectedProvider,
+	)
 
 	return &EvaluationResponse{
 		EvaluatedServiceInstance: currentSpec,
@@ -118,6 +137,7 @@ func (s *evaluationService) evaluatePolicy(
 	selectedProvider string,
 	constraintCtx *ConstraintContext,
 ) (map[string]any, string, error) {
+	log := logging.FromContext(ctx)
 	// 1. Build OPA input with constraints and SP constraints
 	opaInput := map[string]any{
 		"spec":     currentSpec,
@@ -142,6 +162,7 @@ func (s *evaluationService) evaluatePolicy(
 
 	// Skip if policy is undefined
 	if !evalResult.Defined {
+		log.Debug("Policy returned undefined result, skipping", "policy_id", policy.ID)
 		return currentSpec, selectedProvider, nil
 	}
 
@@ -150,6 +171,7 @@ func (s *evaluationService) evaluatePolicy(
 
 	// 3. Check for rejection
 	if decision.Rejected {
+		log.Info("Policy rejected request", "policy_id", policy.ID, "reason", decision.RejectionReason)
 		return nil, "", NewPolicyRejectedError(policy.ID, decision.RejectionReason)
 	}
 
@@ -183,6 +205,7 @@ func (s *evaluationService) evaluatePolicy(
 		if err != nil {
 			return nil, "", NewInternalError("Failed to merge patch into current spec", err.Error(), err)
 		}
+		log.Debug("Policy patch applied", "policy_id", policy.ID)
 	}
 
 	// 8. Validate service provider against SP constraints
@@ -190,6 +213,7 @@ func (s *evaluationService) evaluatePolicy(
 		if err := constraintCtx.ValidateServiceProvider(decision.SelectedProvider); err != nil {
 			return nil, "", NewServiceProviderConstraintError(policy.ID, err.Error())
 		}
+		log.Debug("Policy selected provider", "policy_id", policy.ID, "provider", decision.SelectedProvider)
 		selectedProvider = decision.SelectedProvider
 	}
 

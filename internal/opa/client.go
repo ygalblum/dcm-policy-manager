@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/dcm-project/policy-manager/internal/logging"
 )
 
 const (
@@ -57,6 +59,9 @@ func NewClient(baseURL string, timeout time.Duration) Client {
 
 // StorePolicy stores or updates a policy in OPA using PUT /v1/policies/{id}
 func (c *HTTPClient) StorePolicy(ctx context.Context, policyID string, regoCode string) error {
+	log := logging.FromContext(ctx)
+	log.Debug("Storing policy in OPA", "policy_id", policyID)
+
 	url := fmt.Sprintf(opaEndpointPattern, c.baseURL, policyID)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPut, url, strings.NewReader(regoCode))
@@ -67,11 +72,18 @@ func (c *HTTPClient) StorePolicy(ctx context.Context, policyID string, regoCode 
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
+		log.Error("OPA request failed", "operation", "store", "policy_id", policyID, "error", err)
 		return fmt.Errorf("%w: %v", ErrOPAUnavailable, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	return handleStorePolicyResponse(resp)
+	if err := handleStorePolicyResponse(resp); err != nil {
+		log.Warn("OPA store policy returned error", "policy_id", policyID, "status", resp.StatusCode, "error", err)
+		return err
+	}
+
+	log.Debug("Policy stored in OPA", "policy_id", policyID)
+	return nil
 }
 
 func handleStorePolicyResponse(resp *http.Response) error {
@@ -96,6 +108,9 @@ func handleStorePolicyResponse(resp *http.Response) error {
 
 // GetPolicy retrieves a policy from OPA using GET /v1/policies/{id}
 func (c *HTTPClient) GetPolicy(ctx context.Context, policyID string) (string, error) {
+	log := logging.FromContext(ctx)
+	log.Debug("Getting policy from OPA", "policy_id", policyID)
+
 	url := fmt.Sprintf(opaEndpointPattern, c.baseURL, policyID)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
@@ -105,11 +120,13 @@ func (c *HTTPClient) GetPolicy(ctx context.Context, policyID string) (string, er
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
+		log.Error("OPA request failed", "operation", "get", "policy_id", policyID, "error", err)
 		return "", fmt.Errorf("%w: %v", ErrOPAUnavailable, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusNotFound {
+		log.Warn("Policy not found in OPA", "policy_id", policyID)
 		return "", ErrPolicyNotFound
 	}
 
@@ -139,6 +156,9 @@ func (c *HTTPClient) GetPolicy(ctx context.Context, policyID string) (string, er
 
 // DeletePolicy removes a policy from OPA using DELETE /v1/policies/{id}
 func (c *HTTPClient) DeletePolicy(ctx context.Context, policyID string) error {
+	log := logging.FromContext(ctx)
+	log.Debug("Deleting policy from OPA", "policy_id", policyID)
+
 	url := fmt.Sprintf(opaEndpointPattern, c.baseURL, policyID)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
@@ -148,11 +168,18 @@ func (c *HTTPClient) DeletePolicy(ctx context.Context, policyID string) error {
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
+		log.Error("OPA request failed", "operation", "delete", "policy_id", policyID, "error", err)
 		return fmt.Errorf("%w: %v", ErrOPAUnavailable, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	return handleDeletePolicyResponse(resp)
+	if err := handleDeletePolicyResponse(resp); err != nil {
+		log.Warn("OPA delete policy returned error", "policy_id", policyID, "status", resp.StatusCode, "error", err)
+		return err
+	}
+
+	log.Debug("Policy deleted from OPA", "policy_id", policyID)
+	return nil
 }
 
 func handleDeletePolicyResponse(resp *http.Response) error {
@@ -167,6 +194,9 @@ func handleDeletePolicyResponse(resp *http.Response) error {
 
 // EvaluatePolicy evaluates input against a policy using POST /v1/data/{packageName}/main
 func (c *HTTPClient) EvaluatePolicy(ctx context.Context, packageName string, input map[string]any) (*EvaluationResult, error) {
+	log := logging.FromContext(ctx)
+	log.Debug("Evaluating policy in OPA", "package_name", packageName)
+
 	// Convert package name dots to slashes for OPA data API path
 	// e.g., "policies.my_policy" becomes "policies/my_policy"
 	packagePath := strings.ReplaceAll(packageName, ".", "/")
@@ -190,11 +220,13 @@ func (c *HTTPClient) EvaluatePolicy(ctx context.Context, packageName string, inp
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
+		log.Error("OPA request failed", "operation", "evaluate", "package_name", packageName, "error", err)
 		return nil, fmt.Errorf("%w: %v", ErrOPAUnavailable, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusNotFound {
+		log.Warn("Policy not found in OPA for evaluation", "package_name", packageName)
 		return nil, ErrPolicyNotFound
 	}
 
@@ -221,6 +253,7 @@ func (c *HTTPClient) EvaluatePolicy(ctx context.Context, packageName string, inp
 
 	// OPA returns {} when the policy is undefined; result.Result is nil
 	if result.Result == nil {
+		log.Debug("OPA policy evaluation returned undefined", "package_name", packageName)
 		return &EvaluationResult{Result: nil, Defined: false}, nil
 	}
 
@@ -237,5 +270,6 @@ func (c *HTTPClient) EvaluatePolicy(ctx context.Context, packageName string, inp
 		Defined: true,
 	}
 
+	log.Debug("OPA policy evaluation completed", "package_name", packageName, "defined", evalResult.Defined)
 	return evalResult, nil
 }

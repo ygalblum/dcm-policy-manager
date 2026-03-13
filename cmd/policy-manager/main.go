@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"net"
 	"os"
 	"os/signal"
@@ -15,6 +15,7 @@ import (
 	"github.com/dcm-project/policy-manager/internal/engineserver"
 	"github.com/dcm-project/policy-manager/internal/handlers/engine"
 	"github.com/dcm-project/policy-manager/internal/handlers/v1alpha1"
+	"github.com/dcm-project/policy-manager/internal/logging"
 	"github.com/dcm-project/policy-manager/internal/opa"
 	"github.com/dcm-project/policy-manager/internal/service"
 	"github.com/dcm-project/policy-manager/internal/store"
@@ -32,34 +33,48 @@ func run() int {
 	// Load configuration from environment
 	cfg, err := config.Load()
 	if err != nil {
-		log.Printf("Failed to load configuration: %v", err)
+		slog.Error("Failed to load configuration", "error", err)
 		return 1
 	}
+
+	// Initialize structured logging
+	logging.Init(cfg.Service.LogLevel)
+
+	slog.Info("Configuration loaded",
+		"bind_address", cfg.Service.BindAddress,
+		"engine_bind_address", cfg.Service.EngineBindAddress,
+		"log_level", cfg.Service.LogLevel,
+		"db_type", cfg.Database.Type,
+		"db_host", cfg.Database.Hostname,
+		"opa_url", cfg.OPA.URL,
+	)
 
 	// Initialize database
 	db, err := store.InitDB(cfg)
 	if err != nil {
-		log.Printf("Failed to initialize database: %v", err)
+		slog.Error("Failed to initialize database", "error", err)
 		return 1
 	}
+	slog.Info("Database initialized", "type", cfg.Database.Type)
 
 	// Create store
 	dataStore := store.NewStore(db)
 	defer func() {
 		if err := dataStore.Close(); err != nil {
-			log.Printf("Error closing database: %v", err)
+			slog.Error("Error closing database", "error", err)
 		}
 	}()
 
 	// Parse OPA timeout
 	opaTimeout, err := time.ParseDuration(cfg.OPA.Timeout)
 	if err != nil {
-		log.Printf("Failed to parse OPA timeout: %v", err)
+		slog.Error("Failed to parse OPA timeout", "error", err, "timeout", cfg.OPA.Timeout)
 		return 1
 	}
 
 	// Initialize OPA client
 	opaClient := opa.NewClient(cfg.OPA.URL, opaTimeout)
+	slog.Info("OPA client initialized", "url", cfg.OPA.URL, "timeout", opaTimeout)
 
 	// Create services
 	policyService := service.NewPolicyService(dataStore, opaClient)
@@ -71,7 +86,7 @@ func run() int {
 	// Create public API TCP listener
 	publicListener, err := net.Listen("tcp", cfg.Service.BindAddress)
 	if err != nil {
-		log.Printf("Failed to create public API listener: %v", err)
+		slog.Error("Failed to create public API listener", "error", err, "address", cfg.Service.BindAddress)
 		return 1
 	}
 	defer func() { _ = publicListener.Close() }()
@@ -85,7 +100,7 @@ func run() int {
 	// Create private engine API TCP listener
 	engineListener, err := net.Listen("tcp", cfg.Service.EngineBindAddress)
 	if err != nil {
-		log.Printf("Failed to create engine API listener: %v", err)
+		slog.Error("Failed to create engine API listener", "error", err, "address", cfg.Service.EngineBindAddress)
 		return 1
 	}
 	defer func() { _ = engineListener.Close() }()
@@ -93,6 +108,7 @@ func run() int {
 	// Create private engine API server
 	engineSrv := engineserver.New(cfg, engineListener, engineHandler)
 
+	slog.Info("Starting servers")
 	if err := runServers([]Server{publicSrv, engineSrv}); err != nil {
 		return 1
 	}
@@ -129,7 +145,7 @@ func runServers(servers []Server) error {
 				firstErr = err
 				cancel()
 			}
-			log.Printf("Server error: %v", err)
+			slog.Error("Server error", "error", err)
 		}
 	}
 

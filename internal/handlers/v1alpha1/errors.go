@@ -1,10 +1,39 @@
 package v1alpha1
 
 import (
+	"context"
+
 	"github.com/dcm-project/policy-manager/api/v1alpha1"
 	"github.com/dcm-project/policy-manager/internal/api/server"
+	"github.com/dcm-project/policy-manager/internal/logging"
 	"github.com/dcm-project/policy-manager/internal/service"
 )
+
+// logServiceError logs at Warn level for client errors (4xx) and Error level
+// for internal failures (5xx), so log severity matches HTTP response semantics.
+func logServiceError(ctx context.Context, msg string, err error, attrs ...any) {
+	log := logging.FromContext(ctx)
+	args := append([]any{"error", err}, attrs...)
+	if isClientError(err) {
+		log.Warn(msg, args...)
+	} else {
+		log.Error(msg, args...)
+	}
+}
+
+func isClientError(err error) bool {
+	serviceErr, ok := err.(*service.ServiceError)
+	if !ok {
+		return false
+	}
+	switch serviceErr.Type {
+	case service.ErrorTypeInvalidArgument, service.ErrorTypeNotFound,
+		service.ErrorTypeAlreadyExists, service.ErrorTypeFailedPrecondition:
+		return true
+	default:
+		return false
+	}
+}
 
 // Error handling helpers
 
