@@ -13,4 +13,4 @@ jobs:
       up-target: e2e-up
       test-target: test-e2e
       down-target: e2e-down
-      images: "quay.io/sclorg/postgresql-16-c9s:latest docker.io/openpolicyagent/opa:latest-static"
+      images: "quay.io/sclorg/postgresql-16-c9s:latest"

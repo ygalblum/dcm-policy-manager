@@ -51,14 +51,14 @@ DCM Policy Manager runs two HTTP servers concurrently:
                         │   │  Handlers   │──│  Service   │──────────│  PostgreSQL   │
                         │   └────────────┘  └───────────┘  │        └──────────────┘
   Evaluation            │                        │         │
-  (port 8081)  ────────>│                        ▼         │        ┌──────────────┐
-                        │                   ┌─────────┐    │────────│     OPA      │
-                        │                   │OPA Client│   │        └──────────────┘
+  (port 8081)  ────────>│                   ┌─────────┐    │
+                        │                   │OPA Engine│   │
+                        │                   │(embedded)│   │
                         │                   └─────────┘    │
                         └──────────────────────────────────┘
 ```
 
-The service follows a 3-tier architecture: **Handler** (HTTP concerns) -> **Service** (business logic) -> **Store** (data access via GORM). Rego code is stored in OPA, while policy metadata is stored in the database.
+The service follows a 3-tier architecture: **Handler** (HTTP concerns) -> **Service** (business logic) -> **Store** (data access via GORM). Rego code and policy metadata are both stored in the database. An embedded OPA engine compiles policies from the database on startup and after every CRUD mutation.
 
 ## Getting Started
 
@@ -66,7 +66,6 @@ The service follows a 3-tier architecture: **Handler** (HTTP concerns) -> **Serv
 
 - **Go** 1.25.5+
 - **PostgreSQL** 16+ (or SQLite for development)
-- **OPA** (Open Policy Agent) server
 - **Podman** or **Docker** with Compose (for containerized setup)
 
 ### Building
@@ -80,7 +79,7 @@ make tidy           # Tidy module dependencies
 
 ### Running Locally
 
-1. Start PostgreSQL and OPA (or use SQLite by setting `DB_TYPE=sqlite`).
+1. Start PostgreSQL (or use SQLite by setting `DB_TYPE=sqlite`).
 
 2. Set environment variables (see [Configuration](#configuration)):
 
@@ -91,7 +90,6 @@ export DB_PORT=5432
 export DB_NAME=policy-manager
 export DB_USER=admin
 export DB_PASSWORD=adminpass
-export OPA_URL=http://localhost:8181
 ```
 
 3. Run the service:
@@ -109,7 +107,7 @@ curl http://localhost:8080/api/v1alpha1/health
 
 ### Running with Containers
 
-The `compose.yaml` provides a fully configured stack with PostgreSQL, OPA, and the Policy Manager:
+The `compose.yaml` provides a fully configured stack with PostgreSQL and the Policy Manager:
 
 ```bash
 make e2e-up         # Start all services (builds container image)
@@ -118,7 +116,6 @@ make e2e-down       # Stop and remove all services and volumes
 
 This starts:
 - **PostgreSQL 16** on port 5432
-- **OPA** on port 8181
 - **Policy Manager** on ports 8080 (public API) and 8081 (engine API)
 
 ## API Reference
@@ -342,7 +339,7 @@ curl -X POST http://localhost:8081/api/v1alpha1/policies:evaluateRequest \
 | 400 | Invalid request format |
 | 406 | A policy explicitly rejected the request |
 | 409 | A lower-priority policy conflicted with a higher-priority one |
-| 500 | Internal error (OPA unavailable, database error, etc.) |
+| 500 | Internal error (policy engine failure, database error, etc.) |
 
 ## Writing Policies
 
@@ -672,8 +669,6 @@ All configuration is via environment variables:
 | `DB_NAME` | `policy-manager` | Database name |
 | `DB_USER` | `admin` | Database user |
 | `DB_PASSWORD` | `adminpass` | Database password |
-| `OPA_URL` | `http://localhost:8181` | OPA server URL |
-| `OPA_TIMEOUT` | `10s` | OPA request timeout |
 
 ## Development Guide
 
@@ -701,8 +696,7 @@ dcm-policy-manager/
 │   ├── handlers/
 │   │   ├── v1alpha1/                # Public API request handlers
 │   │   └── engine/                  # Engine API request handlers
-│   ├── opa/                         # OPA HTTP client
-│   ├── rego/                        # Rego code parser (package name extraction)
+│   ├── opa/                         # Embedded OPA policy engine
 │   ├── service/                     # Business logic layer
 │   │   ├── policy.go                # Policy CRUD operations
 │   │   ├── evaluation.go            # Policy evaluation logic
@@ -757,7 +751,7 @@ go test -run TestName ./path/to/pkg    # Run a specific test
 
 #### End-to-End Tests
 
-E2E tests use the `e2e` build tag and require the full stack (PostgreSQL, OPA, Policy Manager) running via Compose:
+E2E tests use the `e2e` build tag and require the full stack (PostgreSQL, Policy Manager) running via Compose:
 
 ```bash
 # Full cycle (start services, run tests, stop services)
@@ -775,7 +769,6 @@ go test -v -tags=e2e ./test/e2e -ginkgo.focus="should create policy"
 E2E tests read the following environment variables:
 - `API_URL` (default: `http://localhost:8080/api/v1alpha1`)
 - `ENGINE_API_URL` (default: `http://localhost:8081/api/v1alpha1`)
-- `OPA_URL` (default: `http://localhost:8181`)
 
 **IDE setup**: For IntelliSense in E2E test files, configure gopls with `-tags=e2e`. The repo includes `.vscode/settings.json` with this configuration. For other editors, add the equivalent setting and reload.
 
